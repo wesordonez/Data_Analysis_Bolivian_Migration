@@ -1,0 +1,1863 @@
+---
+title: "Understanding Migration Patterns in Bolivia"
+author: "Wesley Ordonez"
+date: "2023-08-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+### A Google Data Analytics Capstone Project
+
+This report is the culmination of a rigorous journey through Google's Data Analytics Professional Certificate Program. It represents the final capstone project, an opportunity to apply the wide array of skills and knowledge acquired throughout the course. Unlike the other projects within the program, this capstone project is self-directed, providing an avenue to independently navigate the entire data analytics process, from data collection to visualization and insights generation.
+
+## Executive Summary
+
+This research was undertaken to delve into the displacement and migration patterns observed within Bolivia, with a special emphasis on the influx into the department of Santa Cruz. The motivating force behind this investigation is Santa Cruz's remarkable growth rate, which has significant implications for resource management, sociopolitical stability, and cultural preservation.
+
+Our primary objective is to chart the migratory paths of individuals, pinpointing their residences five years prior and understanding the motivations driving their relocation, particularly towards Santa Cruz. The study leverages data from the 2021 Survey for Homes of Bolivia, providing a comprehensive snapshot of Bolivian migratory habits. 
+
+However, understanding migration in isolation only tells part of the story. To paint a holistic picture of growth dynamics in Santa Cruz and Bolivia as a whole, we also explore various socioeconomic indicators, including income levels, gender and civil statuses, and labor statistics.
+
+Our principal stakeholders include the city of Santa Cruz, municipal and political leaders, economists, urban planners, business leaders, and cultural advocates. This research equips them with a crucial tool to facilitate informed decision-making, whether it's in the realm of urban planning, policy-making, economic initiatives, or cultural programs.
+
+Guided by insights drawn from robust statistical data, we present our findings as a clear roadmap to navigate potential growth challenges. The ultimate goal is to support Santa Cruz and its stakeholders in steering the city towards a future that is not just sustainable, but also inclusive.
+
+As you delve into the report, you'll encounter our detailed analyses and key findings, which shed light on the intricacies of migration patterns and their implications for Bolivia's socio-cultural and economic landscape.
+
+
+## Preparation
+
+### Data Sourcing
+
+The primary data source for this study is the "Survey of Homes 2021", conducted by Bolivia's National Institute of Statistics (NIS). The survey serves as a comprehensive repository of responses collected from across all departments in Bolivia, encompassing a wide range of topics including homeownership, labor, education, and migration. With a total of 12,948 homes surveyed, it offers a rich dataset for exploring the country's migratory patterns.
+
+This survey was accessed through the Archivo Nacional de Datos (ANDA) Catalogue, a centralized data and microdata repository. The ANDA Catalogue is backed by the NIS, in collaboration with the Ministerio de Planificacion del Desarollo del Estado Plurinacional de Bolivia, reinforcing the credibility and reliability of the survey data used in this study.
+
+### Formatting
+
+The original data from the "Survey of Homes 2021" was provided in SPSS format, a proprietary file format from IBM's statistical software. To facilitate a more streamlined analysis, the data was converted into a CSV (Comma Separated Values) file, a universally accepted format for data manipulation and analysis.
+
+This reformatted dataset comprises 357 variables across 42,090 rows, each row representing a unique response in the survey. These variables encompass diverse aspects related to homeownership, labor, education, and migration, offering a comprehensive dataset for the investigation of migratory patterns in Bolivia.
+
+## Processing
+
+Processing the data involved several steps to ensure it was ready for analysis:
+
+#### Variable Reduction: 
+The number of variables was reduced from 357 to 18. These essential variables include factors like sex, education, labor, income, and migratory history. This selection was based on their relevance to the research question and their potential to yield meaningful insights.
+
+#### Data Conversion: 
+The data, originally purely numerical, was converted into readable strings for ease of analysis. This was achieved using the dictionary/key information provided with the dataset.
+
+#### Translation and Renaming: 
+For ease of readability and analysis, effort was dedicated to translating and renaming variable names and a few text/string rows.
+
+#### Libraries and Tools Used:
+
+During this processing phase, several libraries were utilized:
+
+- rmarkdown: For dynamic report generation in R.
+
+- haven: For importing and exporting SPSS, Stata, and SAS files.
+
+- skimr: For providing summary statistics.
+
+- janitor: For simple data cleaning.
+
+- tidyr: For tidying data.
+
+- dplyr: For data manipulation.
+
+- ggplot2: For creating plots.
+
+- stringr: For string manipulation.
+
+- kable: For table formatting 
+
+These libraries played a crucial role in refining and preparing the data for subsequent analysis.
+
+```{r include=FALSE}
+# The first step is preparing the data. We can begin by importing this data in
+# and starting the process of preparing it for analysis. 
+library("rmarkdown")
+library("haven")
+library("skimr")
+library("janitor")
+library("tidyr")
+library("dplyr")
+library("ggplot2")
+library("stringr")
+library("knitr")
+```
+
+
+```{r include=FALSE}
+
+# Reading in the data
+df <- read_sav("Data/EH2021_Persona.sav")
+
+
+# Cleaning the dataset. There's tons of info that I don't need. 
+df_data = select(df,depto,area,s01a_02,s01a_03,s01a_03,s01a_09,s01a_10,s01b_11a,s01b_11b,s01b_11e,s01b_12,s04a_06,s04b_12,s04d_22a,niv_ed,cob_op)
+
+# Now that I have the important data isolated, we can keep cleaning and verifying
+# We will start with renaming columns
+
+df_data <- df_data %>%
+  rename("Department" = "depto",
+         "Urban/Rural" = "area",
+         "Sex" = "s01a_02",
+         "Age" = "s01a_03",
+         "Indiginous" = "s01a_09",
+         "Civil_Status" = "s01a_10",
+         "Residence_2016" = "s01b_11a",
+         "Department_2016" = "s01b_11b",
+         "Country_2016" = "s01b_11e",
+         "Reason" = "s01b_12",
+         "Info_status" = "s04a_06",
+         "Employment_type" = "s04b_12",
+         "Income" = "s04d_22a",
+         "Education" = "niv_ed",
+         "Occupation" = "cob_op")
+
+## Now that the columns are renamed appropriately, it's time to start renaming
+## some of the variables so it's easier to read and analyze.
+## Example: "Sex" column is numerical (1,2), and I want it to read (Male,Female)
+## as it would be easier to read at a glance. 
+
+## Turns out, since we used a .sav (SSPS) the format of the variables is different.
+## To make this analysis easier, I will convert that format to a factor format using
+## the Haven library and the as_factor() method. 
+
+df_data$Sex <- as_factor(df_data$Sex)
+
+
+## Next, we need to use the recode() method to change those labels into the 
+# desired name, in this case, translating and renaming. 
+df_data <- df_data %>% 
+  mutate(Sex = recode(Sex, `1. Hombre` = "Male", `2. Mujer` = "Female"))
+
+## Checking the dataframe shows exactly what we were looking for. Now to complete 
+## the variable name change of the rest...
+df_data$Department <- as_factor(df_data$Department)
+
+df_data$`Urban/Rural`<- as_factor(df_data$`Urban/Rural`)
+
+df_data$Indiginous <- as_factor(df_data$Indiginous)
+
+df_data$Civil_Status <- as_factor(df_data$Civil_Status)
+
+df_data$Residence_2016 <- as_factor(df_data$Residence_2016)
+
+df_data$Department_2016 <- as_factor(df_data$Department_2016)
+
+df_data$Country_2016 <- as_factor(df_data$Country_2016)
+
+df_data$Reason <- as_factor(df_data$Reason)
+
+df_data$Info_status <- as_factor(df_data$Info_status)
+
+df_data$Education <- as_factor(df_data$Education)
+
+df_data$Occupation <- as_factor(df_data$Occupation)
+
+
+# Moving on, some of those labels are in Spanish and a bit wordy. We will 
+# clean up and translate some of these variables
+df_data <- df_data %>% 
+  mutate(`Urban/Rural` = recode_factor(`Urban/Rural`, `Urbana` = "Urban", `Rural` = "Rural")) %>%
+  mutate(Indiginous = recode_factor(Indiginous,
+                                    `1. Pertenece` = "Belongs",
+                                    `2. No pertenece` = "Does not belong",
+                                    `3. NS/NR` = "N/A")) 
+df_data <- df_data %>%
+  mutate(Civil_Status = recode_factor(Civil_Status,
+                                      `1. SOLTERO/A` = "Single",
+                                      `2. CASADO/A` = "Married",
+                                      `3. CONVIVIENTE O CONCUBINO/A` = "Commonlaw Marriage",
+                                      `4. SEPARADO/A` = "Separated",
+                                      `5. DIVORCIADO/A` = "Divorced",
+                                      `6. VIUDO/A` = "Widowed"))
+  
+df_data <- df_data %>%
+  mutate(Residence_2016 = recode_factor(Residence_2016,
+                                        `1. Aquí` = "Here",
+                                        `2. En otro lugar del país` = "Elsewhere in the country",
+                                        `3. En el exterior` = "Abroad",
+                                        `4. Aún no habia nacido` = "Not yet born"))
+
+# Remove digit-dot pattern from factor levels
+df_data <- df_data %>%
+  mutate(Department_2016 = recode_factor(Department_2016,
+                                         `01.Chuquisaca` = "Chuquisaca",
+                                         `02.La Paz` = "La Paz",
+                                         `03.Cochabamba` = "Cochabamba",
+                                         `04.Oruro` = "Oruro",
+                                         `05.Potosí` = "Potosí",
+                                         `06.Tarija` = "Tarija",
+                                         `07.Santa Cruz` = "Santa Cruz",
+                                         `08.Beni` = "Beni",
+                                         `09.Pando` = "Pando"))
+
+# Remove numbers, periods, and spaces from the start of factor levels
+
+df_data <- df_data %>%
+  mutate(Country_2016 = str_replace_all(as.character(Country_2016), "^[0-9. ]*","") %>%
+           factor())
+
+df_data <- df_data %>%
+  mutate(Reason = recode_factor(Reason,
+                                `1. BÚSQUEDA DE TRABAJO` = "Job Search",
+                                `2. TRASLADO DE TRABAJO` = "Work Transfer",
+                                `3. EDUCACIÓN` = "Education",
+                                `4. SALUD` = "Health",
+                                `5. RAZÓN FAMILIAR` = "Family Reason",
+                                `6. OTRA RAZÓN (Especifique)` = "Other Reason (Specify)"))
+
+df_data <- df_data %>%
+  mutate(Info_status = recode_factor(Info_status,
+                                     `1. ¿Estudiante?` = "Student",
+                                     `2. ¿Ama de casa o responsable de los quehaceres y/o cuidado de los miembros del hogar?` = "Stay-at-Home",
+                                     `3. ¿Jubilado o benemérito?` = "Retired",
+                                     `4. ¿Enfermo o con alguna discapacidad?` = "Sick/Disabled",
+                                     `5. ¿Persona de edad avanzada?` = "Elderly",
+                                     `6. ¿Otro? (Especifique)` = "Other"))
+df_data <- df_data %>%
+  mutate(Employment_type = as_factor(Employment_type)) %>%
+  mutate(Employment_type = recode_factor(Employment_type,
+                                         `1. Obrero/Empleado` = "Unskilled Laborer",
+                                         `2. Empleador/a socio que sí recibe salario` = "Salaried Employer/Partner",
+                                         `3. Trabajador/a por cuenta propia` = "Self-Employed",
+                                         `4. Empleador/a o socio/a que no recibe salario` = "Non-salaried employer/partner",
+                                         `5. Cooperativista de producción` = "Production coop member",
+                                         `6. Trabajador/a familiar sin remuneración` = "Unpaid Laborer",
+                                         `7. Aprendiz o persona en formación sin remuneración` = "Unpaid Apprentice/Trainee",
+                                         `8. Empleada/o del hogar` = "Stay-at-Home")) 
+df_data <- df_data %>%
+  mutate(Education = recode(Education,
+                            `Ninguno` = "None",
+                            `Primaria incompleta` = "Uncomplete Primary",
+                            `Primaria completa` = "Complete Primary",
+                            `Secundaria incompleta` = "Uncomplete Secondary",
+                            `Secundaria completa` = "Complete Secondary",
+                            `Superior` = "Higher Education",
+                            `Otros` = "Others"))
+df_data <- df_data %>%
+  mutate(Occupation = recode(Occupation,
+                             `Fuerzas Armadas` = "Armed Forces",
+                             `Directivos Adm. Pública y Empresas` = "Public Administration and Business Managers",
+                             `Profesionales cientificos e intelectuales` = "Scientific and Intellectual Professionals",
+                             `Técnicos de Nivel Medio` = "Mid-Level Technicians",
+                             `Empleados de oficina` = "Office Employees",
+                             `Trabajadores de Servicio y Vendedores` = "Service Workers/Merchants",
+                             `Trabajadores en Agricultura, Pecuaria,Pesca y otros` = "Agriculture, Livestock, Fishing and Others",
+                             `Trabajadores de la Construcción, Ind. Manufacturera y Otros` = "Construction/Manufacturing Industry Workers",
+                             `Operadores de Instalaciones y Maquinarias` = "Installation/Machinery Operators",
+                             `Trabajadores No Calificados` = "Unskilled Workers",
+                             `Sin especificar` = "Unspecified")) 
+```
+
+
+## Analysis
+
+### Preliminary Analysis
+
+In the initial phase of the analysis, the focus is on gaining a high-level understanding of the data. This involves exploring the distribution of responses across different departments, examining variables such as sex and population type, and identifying any potential trends or patterns that warrant further investigation.
+
+Each figure in this section is accompanied by a brief caption that summarizes its key findings and significance. The code used to generate these figures is available upon request, allowing technically inclined readers to reproduce or extend the analysis.
+
+#### Geographic Distribution
+The initial step in the analysis was to understand the geographic distribution of responses. The first plot (Figure 1) presents a bar chart of the total number of survey responses by department.
+
+This visualization provides a high-level overview of where the survey responses are coming from. It's important to consider the distribution of responses across departments when analyzing the data, as uneven distribution could introduce bias towards larger departments with higher response counts.
+
+As shown in Figure 1, the departments of La Paz, Santa Cruz, and Cochabamba have the highest number of responses, while other departments have fewer responses. This distribution is an essential context for the subsequent analysis.
+
+```{r echo=FALSE, fig.cap="Figure 1: Distribution of Survey Responses by Department"}
+ggplot(df_data, aes(x = Department)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses", title = "Distribution of Survey Responses by Department")
+```
+
+
+The top three departments with the highest number of responses - La Paz, Santa Cruz, and Cochabamba - provided 10,129, 7,499, and 7,289 responses respectively. This distribution sets the stage for a more detailed breakdown by gender, as presented in the next section.
+
+```{r pressure, include=FALSE}
+# Nice. What are the top 3 departments by count?
+dept_counts <- table(df_data$Department)
+
+# Sort in descending order and select top 3
+top_three_depts <- sort(dept_counts, decreasing = TRUE)[1:3]
+
+# Print the result
+print(top_three_depts)
+```
+
+#### Distribution of Sex and Population Type
+
+The next step was to examine the distribution of responses when separated by sex and population type. This disaggregation allows us to understand if there are any significant differences in response rates among these categories, which could be indicative of different migratory patterns or behaviors.
+
+The two plots in this section (Figures 2 and 3) present the distribution of responses by sex and population type, respectively, across the different departments.
+
+```{r echo=FALSE, fig.cap="Figure 2: Distribution of Survey Responses by Sex"}
+# Is there any meaningful change in the sex distribution per Department? 
+# Create a stacked bar plot for sex
+ggplot(df_data, aes(x = Department, fill = Sex)) +
+  geom_bar(position = "stack") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses", fill = "Sex", 
+       title = "Distribution of Responses by Sex")
+# No significant difference between genders per department
+```
+
+
+This plot shows a relatively equal distribution of survey responses by sex across each department.
+
+```{r echo=FALSE , fig.cap="Figure 3: Distribution of Survey Responses by Population Type"}
+# What about Urban/Rural living per department?
+# Create a stacked bar plot for Urban/Rural living
+ggplot(df_data, aes(x = Department, fill = `Urban/Rural`)) +
+  geom_bar(position = "stack") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses", fill = "Population Type", 
+       title = "Distribution of Responses by Population Type")
+```
+
+
+This plot presents the distribution of survey responses by population type (urban/rural) across each department. The the most populous departments (Cochabamba, La Paz, and Santa Cruz) have the highest discrepancy between population types, favoring urbanism. Pando and Chuquisaca on the other hand, have almost equal distribution of rural and urban populations. 
+
+#### Distribution of Average Age
+
+The next facet of the analysis examines the age distribution of the respondents. Understanding the age distribution is crucial as it can shed light on whether the responses reflect the age demographics of Bolivia's population and if there are distinct migratory behaviors associated with different age groups.
+
+```{r echo=FALSE, fig.cap="Figure 4: Age Distribution of Survey Respondents"}
+# Let's look at the age of the respondents. 
+ggplot(df_data, aes(x = Age)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Age", y = "Responses", title = "Histogram Showing Age Distribution of Respondents")
+# Pretty much the expected bar plot. (Although, it's kind of weird that 
+# there seems to be a lot of zero age though...)
+```
+
+
+The age distribution of survey respondents, as illustrated in the histogram, reveals a higher frequency of younger respondents, peaking in the late teens to early twenties. This could suggest that younger individuals, possibly due to reasons such as education or job opportunities, may be more represented in home changes and thus the survey. The distribution is right-skewed, with fewer older respondents, possibly indicating lower rates of home changes or survey participation among older individuals. Interestingly, there is a noticeable decrease in respondents in the middle-age group, the reasons for which might warrant further investigation. Another possible explanation, is that this survey is completed by each member of the household. This would result in a higher response rate from younger people, considering the common extended family structure often found in Bolivia. 
+
+##### Zero-Age Analysis
+
+There's a considerable amount of responses with zero age. This would be a count of infants in each household. A quick analysis is needed to show the impact those responses will have on the study. 
+
+The initial analysis shows the range of ages goes from 0 to 98 years. There are 567 entries with zero-age. The next figure shows the distribution of those zero-age responses, normalized as a percentage of the total responses of each department. 
+
+```{r include=FALSE}
+# What is the age range?
+print(min(df_data$Age))
+print(max(df_data$Age))
+# Respondents from age 0 to 98 (My Tia Angelica was 110!!)
+zero_age_count <- sum(df_data$Age == 0, na.rm = TRUE)
+print(zero_age_count)
+# Counting the number of zero age results in 567 entries.
+```
+
+```{r echo=FALSE, fig.cap="Figure 5: Percentage of Zero-Age Responses per Department"}
+df_data %>% 
+  group_by(Department) %>%
+  summarise(total_count = n(), 
+            zero_count = sum(Age == 0, na.rm = TRUE), 
+            prop_zero_age = zero_count / total_count) %>%
+  ggplot(aes(x = Department, y = prop_zero_age)) +
+  geom_col() +
+  scale_y_continuous(labels = scales::percent) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Percentage of Zero-Age Responses per Department",
+       x = "Department",
+       y = "Percentage of Zero-Age Responses")
+
+# Okay, so Santa Cruz has the most zero-age with 125. Beni and Pando have
+# fewer than 100 combined so it's negligible with the average age. I think it's
+# also negligible in Santa Cruz but let's check.
+```
+
+
+As this plot shows, no department has more than 2% of their responses with zero-age. As a demonstration, the average age of Santa Cruz respondents including the zero-age responses is 28.88 years. The average age removing the zero-age responses is 29.35 years, which is only 0.47 years more, a negligible amount.
+
+```{r include=FALSE}
+# Let's compare the average age before and after removing the zero age
+df_data %>%
+  filter(Department == "Santa Cruz") %>%
+  summarise(Avg_Age = mean(Age, na.rm = TRUE))
+# Average age in Santa Cruz = 28.9
+df_data %>%
+  filter(Department == "Santa Cruz", Age != 0) %>%
+  summarise(Avg_Age_no_zero = mean(Age, na.rm = TRUE))
+# Average age disregarding zero ages = 29.4
+# Barely any change, but still Santa Cruz is a bit younger though not as 
+# young as beni or pando. 
+```
+
+#### Distribution of Age (cont.)
+
+This next figure will show the average age of each department. Migratory patterns of each department may be impacted by the age of the respondents. 
+
+```{r echo=FALSE , fig.cap="Figure 6: Average Age of Respondents by Department" }
+# Let's visualize the average age of each department
+df_data %>% 
+  group_by(Department) %>%
+  summarise(AverageAge = mean(Age, na.rm = TRUE)) %>%
+  ggplot(aes(x = Department, y = AverageAge)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Average Age by Department",
+       x = "Department",
+       y = "Average Age")
+# Awesome. Average age hovers around 30 except for in Santa Cruz, Beni and Pando
+# where it is lower.
+```
+
+
+The data reveals minimal differences in the average age of survey respondents across Bolivian departments, ranging from around 26 to 30. Oruro stands out with the highest average respondent age of 30.14, potentially indicating unique home change patterns in this region. Conversely, Beni, Pando, and Santa Cruz report the lowest average ages, around 26-27, suggesting a younger demographic actively participating in the survey. Overall, these findings underscore the importance of considering demographic variations when analyzing home change patterns across different regions in Bolivia.
+
+#### Distribution of Education Levels
+
+A key dimension in understanding home change patterns in Bolivia is education. Education level can significantly influence an individual's opportunities and decisions, potentially affecting their likelihood to migrate. In this section of the analysis, we explore the distribution of education levels among survey respondents to gain insights into their educational demographics.
+
+```{r echo=FALSE, fig.cap="Figure 7: Distribution of Education Levels Among Respondents"}
+# Let's see what the distribution is.
+ggplot(df_data, aes(x = Education)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Level of Education", y = "Responses", title = "Distribution of Education Levels of Respondents")
+# Low amount of completed primary. We should filter out anyone below 18 years.
+```
+
+
+Across all respondents, 'higher' education is the most common level, followed by 'uncompleted primary' and 'uncompleted secondary'. The least common levels are 'other' and 'completed primary'. This distribution suggests a predominantly secondary-educated population among those migrating. It also highlights the strikingly high representation of respondents with 'uncompleted primary'  education, that begs for further analysis. 
+
+Consequently, an important consideration is the age of respondents. In many contexts, individuals under the age of 18 are likely to be still in the process of education, which could affect the distribution of education levels. To account for this, we examine the distribution of education levels among adult respondents, defined as those aged 18 and over.
+
+```{r echo=FALSE, fig.cap="Figure 8: Distribution of Education Levels Among Adult (18+) Respondents"}
+# Distribution of age (18+)
+df_data %>%
+  filter(Age >= 18) %>%
+  ggplot(aes(x = Education)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Level of Education", y = "Responses", title = "Distribution of Education Levels Among 18+ Respondents")
+# Interestingly, there is a larger group of people over 18 that never completed primary school. 
+
+```
+
+
+Among adult respondents, the distribution of education levels is similar to the overall population, with 'higher' education being the most common level. This consistency underscores the prevalence of secondary education among adults in Bolivia. Nevertheless, 'uncomplete primary' and 'none' remain relatively high, albeit, greatly reduced in adults, further reinforcing the potential differences in home change patterns among these education groups.
+
+Having examined the overall distribution of education levels and the variation among adult respondents, it's valuable to further disaggregate the data by sex. Sex can play a significant role in educational attainment due to various societal, cultural, and economic factors. Therefore, understanding the differences in education levels between men and women can provide deeper insights into this data. In the following figure, we will explore the distribution of education levels, comparing male and female respondents to identify any notable trends or disparities.
+
+```{r echo=FALSE, fig.cap="Figure 9: Distribution of Education Levels Among Adults by Sex"}
+# Are there any differences when it comes to educational level and gender? 
+df_data %>%
+  filter(Age >= 18) %>%
+  ggplot(aes(x = Education, fill = Sex)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Level of Education", y = "Responses", title = "Distribution of Education Among Adults by Sex")
+# Fascinating. There is pretty much an even split across the board except
+# with people who don't have any education, which is overwhelmingly female. 
+# I wonder why...
+```
+
+Examining the distribution of education levels among adult respondents by sex, we find a balance across most categories. Secondary education is most common for both males and females, reflecting its commonality among adults in Bolivia. For other categories, including primary and undergraduate education, the representation of males and females is relatively equal, suggesting minimal gender disparity in these education levels.
+
+Interestingly, the 'no education' category, although less common overall, shows a higher female representation. This observation warrants a closer look. The following section delves into a sub-analysis to understand the factors contributing to the female dominance in the 'no education' category, exploring potential societal, economic, or cultural influences that might be at play.
+
+##### Investigation of Female Dominance with No-Education Reported
+
+Given the observed higher representation of females in the 'no education' category, it's important to further investigate potential contributing factors. One such factor could be the population type - urban or rural - of the respondents. In many societies, especially in rural areas, educational opportunities can be gender-biased due to prevailing cultural norms. Consequently, we might find that the 'no education' category is more prevalent among females in rural areas.
+
+In the next figure, we narrow our focus to the 'no education' category and compare the population types of the respondents. This analysis aims to explore whether the population type plays a role in the observed gender disparity in this education level.
+
+```{r echo=FALSE, fig.cap="Figure 10: Distribution of Population Type Among 'No Education' Respondents by Sex"}
+# Maybe people with no education are mostly from Rural areas (generally speaking, 
+# more traditionally male-dominated areas). Let's check.
+df_data %>%
+  filter(Education == 'None', Age >= 18) %>%
+  ggplot(aes(x = `Urban/Rural`, fill = Sex)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Population Type", y = "Responses", title = "Distribution of Population Type Among 'No Education' Respondents by Sex")
+# Nope. If anything, there's more men in rural areas that haven't received education
+# than in urban environments... 
+```
+
+
+Upon a closer examination of the 'no education' category, we find an intriguing pattern. Women are slightly more under-represented in urban areas than in rural areas. This difference, although not substantial, suggests that urban women face more challenges in accessing education, which counters the oft-cited socio-economic dynamics of rural areas, particularly in Bolivia and other South American countries.
+
+Another factor that could be influencing this disparity is whether respondents belong to an indigenous group. Indigenous populations often face different socio-economic dynamics and may have unique educational challenges that could impact the gender distribution in the 'no education' category.
+
+```{r echo=FALSE, fig.cap="Figure 11: Distribution of Indigenous Group Membership Among 'No Education' Respondents by Sex"}
+# Does indiginous heritage have anything to say? 
+df_data %>%
+  filter(Education == 'None', Age >= 18) %>%
+  ggplot(aes(x = `Indiginous`, fill = Sex)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Indigenous Membership", y = "Responses", title = "Distribution of Indigenous Membership Among 'No Education' Respondents by Sex")
+# Not really. Both identifiers are almost equal with women being the majority.
+# Well, that tangent was interesting but let's move on...
+```
+
+
+Examining the distribution of indigenous membership by sex, among respondents with no education, we find minimal difference between the two. This finding suggests there is no discernable influence of the indigenous background to access education, however, deeper analysis and investigation is needed to address the disparity of gender with no education.  
+
+#### Distribution of Education Levels (cont.)
+
+As we continue to explore the relationship between education levels and migratory patterns in Bolivia, it's essential to consider the geographic element. Bolivia's diverse departments each carry unique socio-economic contexts that could influence education levels and, consequently, migratory behaviors. In this next section of our analysis, we break down the distribution of education levels by department. This inter-departmental examination will allow us to identify any regional trends or disparities in education among respondents, potentially shedding light on region-specific factors impacting migratory patterns.
+
+```{r echo=FALSE, fig.cap="Figure 12: Distribution of Education Levels by Department Among Adults"}
+# What does this Educational spread look like in every department? 
+df_data %>%
+  filter(Age >= 18) %>%
+  ggplot(aes(x = Education, fill = Education)) +
+  geom_bar() +
+  facet_wrap(~ Department) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Level of Education", y = "Responses", title = "Distribution of Education Levels by Department Among Adults (18+)", fill = "Education Level")
+# Clearly, the three big departments have the higher number of people who completed
+# Secondary and Higher Education. However, those departments also had a higher number of 
+# respondents. We should normalize this data and then compare.
+```
+
+
+The raw count visualization of education levels across different Bolivian departments reveals intriguing patterns. Each department presents a unique educational makeup among adults. Higher education seems prevalent across all departments, aligning with our previous observations. However, the distribution of other education levels varies, hinting at possible regional disparities. Notably, La Paz has the highest disparity between higher education graduates and other education levels. Conversely, Potosi is the only department where uncomplete primary education rivals higher education by count. 
+
+While raw counts provide a broad overview of the educational landscape in each department, they can sometimes mask underlying patterns. Different departments may have significantly different population sizes, which can influence the raw counts. To gain a more nuanced understanding of the distribution of education levels, it's crucial to normalize these counts by looking at the percentage distribution within each department. This perspective can reveal relative trends and disparities that might be obscured when looking at raw counts.
+
+```{r echo=FALSE, fig.cap="Figure 13: Percentage Distribution of Education Levels by Department Among Adults"}
+# One way to do this is to compare the percentage of education relative to each department.
+df_data %>%
+  filter(Age > 18) %>%
+  count(Department, Education) %>%
+  group_by(Department) %>%
+  mutate(Total = sum(n),
+         Percentage = n / Total * 100) %>%
+  ggplot(aes(x = Education, y = Percentage, fill = Education)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Level of Education", y = "Percentage",
+       title = "Education level by Department (Normalized)",
+       fill = "Education Level") +
+  facet_wrap(~ Department)
+# This is much better. Potosi, Pando, and Beni have the lowest percentage of people
+# with Higher Education. Potosi and Chuquisaca both have nearly 20% of incompleted primary.
+
+```
+
+
+The percentage distribution visualization offers a fresh perspective on the educational makeup of each department. Normalizing by department size, we see the relative representation of each education level, providing a clearer picture of inter-departmental differences. While secondary education remains the most common level in relative terms, the disparities in other education levels become more pronounced when viewed as a percentage of the total respondents in each department, as seen in La Paz and Chuquisaca. Particularly, the 'no education' category's distribution might reveal more nuanced insights about access to education in different regions, such as Potosi and Chuquisaca having the highest amount.
+
+#### Labor and Employment
+
+As we continue to unravel the complex tapestry of migration patterns in Bolivia, it's vital to consider the role of labor and employment. Employment status and occupational categories can significantly influence an individual's decision to change homes. Economic opportunities, job availability, and the nature of specific occupations might steer people towards urban centers or conversely, anchor them to rural areas.
+
+In this next section, we turn our attention to the employment and occupational landscape among the respondents. We will examine the distribution of employment statuses, delve into the variety of occupations, and explore how these factors might interplay with migration. By shedding light on these labor-related aspects, we aim to gain a more comprehensive understanding of the driving forces behind Bolivian migration patterns.
+
+The upcoming figure presents a distribution plot of the reported occupation types. This visualization provides an overview of the occupational landscape among the respondents, shedding light on the most common and least common industries. By understanding this distribution, we can start to explore the relationship between specific occupations and migration trends.
+
+
+To begin, let's look at the counts of the the industry/occupation of the respondents.
+
+```{r echo=FALSE, fig.cap="Figure 14: Distribution of Occupation Types Among Adults"}
+# What does the industry/occupation distribution look like? 
+df_data %>%
+  filter(!is.na(Occupation)) %>%
+  ggplot(aes(x = Occupation)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Occupation", y = "Responses", title = "Distribution of Occupation Types Among Adults")
+# There are three main industries that pretty much monopolize the labor. Let's
+# dig into it.
+```
+
+
+Upon examining the distribution of occupation types among adult respondents, we observe a varied landscape. Some occupations, such as 'Service/Merchant Work', 'Agriculture, Hunting, Forestry and Fishing' and 'Manufacturing', are more prevalent among the respondents. These occupations might be more common due to the country's economic structure and available resources. On the other hand, occupations like 'Public Administration and Business Management','Office Work', and 'Armed Forces' are less common among respondents, possibly due to the specific skills and qualifications these fields require.
+
+```{r include=FALSE}
+# What are the top three industries in percentage? 
+df_data %>%
+  filter(!is.na(Occupation)) %>%
+  count(Occupation) %>%
+  mutate(percentage = n / sum(n) * 100) %>%
+  arrange(desc(n)) %>%
+  slice_max(n, n = 3)
+# The top three occupations/industries are the following
+# 1. Service/Merchants - 4397 - 22.6 %
+# 2. Agriculture Labor - 3902 - 20.1 %
+# 3. Construction/Manufacturing - 3613 - 18.6 %
+```
+
+Delving deeper into the occupational distribution, three occupations stand out due to their prevalence among the respondents: Service/Merchants, Agriculture Labor, and Construction/Manufacturing. The Service/Merchants sector represents the largest group, encompassing approximately 22.6% of the respondents. Following closely, Agriculture Labor accounts for around 20.1% of the respondents, and Construction/Manufacturing makes up approximately 18.6%.
+
+These three occupations collectively form a significant portion of the respondents' occupational landscape, indicating key areas of economic activity among adults in Bolivia. Understanding the labor dynamics within these sectors could provide valuable insights into their potential influence on migratory decisions.
+
+Alongside these prominent occupations, we also see three main types of employment among the respondents. Self-Employment emerges as the most common, accounting for around 44.5% of the respondents. The Worker/Employee category follows, representing approximately 34.1% of the respondents, while Unpaid Family Workers form about 15.5% of the respondents.
+
+In the next figure, we will explore the most common employment types within these top three occupations. This analysis will provide a more nuanced understanding of the labor structures within these prevalent sectors and may reveal specific employment patterns that could play a role in migration trends.
+
+```{r include=FALSE}
+# What does the employment type look like? 
+df_data %>%
+  filter(!is.na(Employment_type)) %>%
+  count(Employment_type) %>%
+  mutate(percentage = n / sum(n) * 100) %>%
+  arrange(desc(n)) %>%
+  slice_max(n, n = 3)
+## The top three employment types are the following
+# 1. Self-Employed - 8635 - 44.5 %
+# 2. Worker/Employee - 6620 - 34.1 %
+# 3. Unpaid family worker - 3013 - 15.5 %
+```
+
+```{r echo=FALSE, fig.cap="Figure 15: Distribution of Most Common Employment Types within Top Occupations"}
+# What does the top three industries look like separated by the top three
+# employment types? A break down of the worker type by industry. 
+
+# Subset of top three occupations
+top_occupations <- df_data %>%
+  filter(!is.na(Occupation)) %>%
+  count(Occupation) %>%
+  arrange(desc(n)) %>%
+  slice_head(n = 3) %>%
+  pull(Occupation)
+
+# Subset of top three employment types
+top_employment_types <- df_data %>%
+  filter(!is.na(Employment_type)) %>%
+  count(Employment_type) %>%
+  arrange(desc(n)) %>%
+  slice_head(n = 3) %>%
+  pull(Employment_type)
+
+# Subset the data
+df_subset <- df_data %>%
+  filter(Occupation %in% top_occupations & Employment_type %in% top_employment_types)
+
+# Create the stacked bar plot
+ggplot(df_subset, aes(x = Occupation, fill = Employment_type)) +
+  geom_bar(position = "stack") +
+  labs(x = "Occupation", y = "Responses", fill = "Employment Type",
+       title = "Distribution of Employment Types within Top Occupations") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# This visualization is great. it shows the division of employment type in the 
+# top three occupations/industries. What it shows is a large portion of all labor
+# is Self-Employment. As expected, there are more Unskilled Laborers in the construction
+# industry and less in the agricultural. What I didn't expect was a larger amount of 
+# unpaid laborers in agriculture. However, if you consider they are most likely 
+# people working their own family farm/land it begins to make sense.
+```
+
+
+Upon exploring the employment types within the top three occupations, distinct patterns come to light. The 'Self-Employed' category is notably prevalent across all three occupations, suggesting a significant degree of entrepreneurial activity or independent work among these workers.
+
+However, an interesting pattern emerges within the 'Agriculture Labor' occupation, where 'Unpaid Laborers' make up a substantial portion. Upon reviewing the dataset's documentation, it's revealed that this category includes individuals who work on their family-owned land or livestock. This familial or household nature of their work likely accounts for the unpaid aspect of their employment.
+
+Building on this analysis, it would be instructive to examine how these employment type distributions within top occupations might vary across different departments. Such a perspective can uncover regional differences in labor structures and further enrich our understanding of the interplay between labor conditions and migration trends.
+
+```{r echo=FALSE , fig.cap="Figure 16: Distribution of Most Common Employment Types within Top Occupations by Department"}
+# What woud this plot look like comparing each department?
+
+# Create the stacked bar plot in every department
+ggplot(df_subset, aes(x = Occupation, fill = Employment_type)) +
+  geom_bar(position = "stack") +
+  facet_wrap(~ Department) +
+  labs(x = "Occupation", y = "Responses", fill = "Employment Type",
+       title = "Distribution of Employment Types within Top Occupations by Deparment") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# Nothing wildly unexpected, fun visual to look at. In order for it to be useful
+# we would need to change this into percentages though, to normalize the data.
+```
+
+
+Upon viewing the employment type distributions within top occupations across different departments, we uncover interesting regional variations. While 'Self-Employed' remains a prevalent employment type across all departments, the proportions of 'Unskilled Laborers' and 'Unpaid Laborers' exhibit notable differences. Some departments, for instance, might have a higher proportion of 'Unpaid Laborers' in 'Agriculture Labor', reflecting regional variations in family-owned agricultural practices.
+
+These department-wise patterns add another layer of complexity to our understanding of labor structures in Bolivia and their potential influences on migration decisions. They highlight the importance of considering regional contexts when analyzing national labor and migration trends.
+
+With these insights in mind, we turn our attention to the intersection of employment and gender. In the next figure, we will examine the distribution of employment types broken down by sex. This exploration will help us understand if and how gender influences employment patterns in Bolivia, thereby shedding light on another crucial aspect of the migration puzzle.
+
+```{r echo=FALSE , fig.cap="Figure 17: Distribution of Top Occupations Separated by Sex"}
+# How about employment separated by sex? 
+
+# Create the stacked bar plot separated by sex
+ggplot(df_subset, aes(x = Occupation, fill = Sex)) +
+  geom_bar(position = "stack") +
+  labs(x = "Occupation", y = "Responses", fill = "Sex",
+       title = "Distribution of Top Occupations Separated by Sex") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+From the figure, it's clear that gender distribution varies significantly across the top three occupations. The 'Service/Merchants' sector sees a higher proportion of women, indicating their strong presence in service-oriented roles. Meanwhile, 'Agriculture Labor' shows a more balanced gender distribution, suggesting relatively equal engagement of men and women in agricultural work. However, 'Construction/Manufacturing' is primarily male-dominated, reflecting traditional gender roles in these physically demanding industries.
+
+These insights highlight the role of gender in shaping Bolivia's labor landscape and potentially influencing migration patterns. Understanding these gender dynamics within specific occupations can provide a deeper perspective on the socioeconomic factors at play in migration decisions.
+
+In the next figure, we'll explore how these gender distributions within top occupations vary across different departments. This analysis will enable a more granular understanding of regional labor structures, illuminating how gender and occupation intersect at a departmental level.
+
+```{r echo=FALSE, fig.cap="Figure 18: Distribution of Top Occupations Separated by Sex per Department"}
+# Create the stacked bar plot in every department separated by sex
+ggplot(df_subset, aes(x = Occupation, fill = Sex)) +
+  geom_bar(position = "stack") +
+  facet_wrap(~ Department) +
+  labs(x = "Occupation", y = "Responses", fill = "Sex",
+       title = "Distribution of Top Occupations Separated by Sex per Department") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# Again, nothing out of the ordinary, but for it to be useful it should be 
+# changed to show percentage not total count. 
+```
+
+
+Upon examining the department-wise gender distributions within top occupations, we observe patterns similar to the overall trends, with some intriguing regional variations. More rural departments, for instance, display a higher proportion of women in the 'Service/Merchants' sector compared to 'Agriculture Labor' or 'Construction/Manufacturing'. This could reflect regional economic dynamics, where women might find more opportunities in service-oriented roles.
+
+In contrast, urban departments exhibit a more balanced gender distribution in the 'Service/Merchants' sector, although it remains female-dominated. This indicates that urbanization may influence gender roles in the workforce, potentially leading to a more equitable labor landscape.
+
+These insights not only confirm the importance of gender in shaping occupational structures but also highlight the role of regional contexts in influencing these gender dynamics. As we move forward, we'll delve into another dimension of the labor landscape: age.
+
+In the next table, we will examine the average age of respondents within each occupation. This analysis will help us understand how age distribution varies across occupations, providing another layer of insight into the potential determinants of migration patterns.
+
+```{r echo=FALSE, fig.cap="Table 1: Average Age by Occupation"}
+# Filter data and calculate average age
+df_data %>%
+  filter(Employment_type %in% top_employment_types, Age >= 18) %>%
+  group_by(Occupation) %>%
+  summarise(Avg_Age = mean(Age, na.rm = TRUE)) %>%
+  kable(caption = "Table 1: Average Age per Occupation","html",
+        col.names = c('Occupation','Average Age'), digits = 2)
+# Average ages per industry are 46.5, 40.2, and 39.4.
+```
+
+
+
+Insights from the table reveal interesting age dynamics within various occupations. The 'Agriculture, Livestock, Fishing and Others' sector presents the highest average age, suggesting that these fields might be dominated by older workers. Similarly, 'Armed Forces' and 'Public Administration and Business Managers' also show higher average ages, indicating these occupations might require more experience or seniority.
+
+In contrast, occupations such as 'Office Employees', 'Unskilled Workers', and 'Mid-Level Technicians' have lower average ages, hinting at a younger workforce in these fields. This could be due to a variety of factors, including the level of physical demand, educational requirements, or opportunities for entry-level positions in these sectors.
+
+These age dynamics within specific occupations offer valuable insights into the labor landscape in Bolivia. Understanding how age and occupation intersect can provide a deeper perspective on the socioeconomic factors at play in migration decisions.
+
+Having examined the occupational landscape and its intersection with gender and age, we now turn our attention to another vital aspect of socioeconomic status and a potential influence on migration decisions: income. Income level can significantly impact an individual's quality of life, access to resources, and mobility options, making it a critical factor to consider in our analysis. In the following section, we will delve into the income data to uncover patterns, disparities, and potential correlations with migration trends in Bolivia.
+
+#### Income
+
+Income is a crucial facet of socioeconomic status, and understanding its distribution and patterns can provide invaluable insights into migration drivers. In this section, we will dissect the income data from multiple angles. We'll begin by evaluating median incomes, shedding light on the central tendencies of earnings. Subsequently, we will investigate Bolivia's minimum wages and gauge the count of individuals whose earnings align with or fall below this threshold. Such insights can be particularly illuminating, highlighting potential economic vulnerabilities within the population. Furthermore, a departmental comparison will offer a granular view of regional disparities, emphasizing areas with pronounced economic contrasts. It's important to note that for the purpose of this analysis, certain changes have been made to the dataset and assumptions formulated to streamline the evaluation process. These modifications ensure a more structured and focused exploration of the income landscape in Bolivia.
+
+##### Income Data Normalization
+
+To conduct a cohesive and comprehensive analysis of income across Bolivia, it was essential to ensure that all income data adhered to a consistent scale. The original dataset presented income data based on diverse pay frequencies, including weekly,bi-weekly, daily, and yearly rates, among others. To address this inconsistency, we undertook a normalization process. We converted all these different frequencies into a standardized monthly income format. This normalization not only facilitated a more straightforward comparison across all data points but also provided a clearer and more immediate understanding of the monthly economic realities faced by respondents. The result is a unified dataset that offers a consistent view of income patterns across the country.
+
+```{r include=FALSE}
+# Now, I want to explore the pay/income. However, first I need to append a column
+# I initially forgot to add.The frequency of pay.
+# Bind the new column to the existing data frame
+df_data <- df_data %>%
+  bind_cols(df %>%
+              select(s04d_22b) %>%
+              rename(Pay_frequency = s04d_22b))
+df_data <- df_data %>% 
+  mutate(Pay_frequency = factor(Pay_frequency),
+         Pay_frequency = recode_factor(Pay_frequency,
+                                       `1` = "Daily",
+                                       `2` = "Weekly",
+                                       `3` = "Bi-weekly",
+                                       `4` = "Monthly",
+                                       `5` = "Bi-monthly",
+                                       `6` = "Quarterly",
+                                       `7` = "Bi-annually",
+                                       `8` = "Annually"))
+```
+
+```{r include=FALSE}
+# Next, we need to normalize that frequency in a new column. We can do so by 
+# calculating the monthly pay based off the frequency.
+df_data <- df_data %>% 
+  mutate(Monthly_Income = case_when(
+    Pay_frequency == "Daily"   ~ Income * 30,  # Assuming 30 days in a month
+    Pay_frequency == "Weekly"  ~ Income * 4,   # Assuming 4 weeks in a month
+    Pay_frequency == "Bi-weekly" ~ Income * 2, # 2 pay periods in a month
+    Pay_frequency == "Monthly" ~ Income,       # Income is already monthly
+    Pay_frequency == "Bi-monthly" ~ Income / 2, # 2 months per pay period
+    Pay_frequency == "Quarterly" ~ Income / 3,  # 3 months per pay period
+    Pay_frequency == "Bi-annually" ~ Income / 6, # 6 months per pay period
+    Pay_frequency == "Annually" ~ Income / 12,  # 12 months per pay period
+    TRUE ~ NA_real_  # In case there are unexpected values
+  ))
+
+```
+
+##### Income Analysis
+
+```{r echo=FALSE, fig.cap="Table 3: Summary of Monthly Income in Bolivian pesos (Bs.)"}
+# What is the range and mean monthly income? 
+
+  df_data %>%
+    filter(!is.na(Monthly_Income)) %>%
+    summarise(
+      Maximum = max(Monthly_Income),
+      Minimum = min(Monthly_Income),
+      Median = median(Monthly_Income),
+      Mean = mean(Monthly_Income)
+    ) %>%
+    kable(caption = "Table 2: Income Range in Bolivian Pesos (Bs.)","html",
+          digits = 2, align = "cccc")
+  
+# The lowest paid person gets 16.667 bs per month...
+# The highest gets 452,400 bs per month...
+# The average monthly income is 5,089.5 bs. 
+# And the minimum wage as per Bolivian law is 2,250 bs. 
+# Either something is wrong or that is one lucky person. Let's dig in.
+```
+
+
+
+This table presents a comprehensive overview of income statistics for Bolivia. It encompasses key metrics such as the minimum, maximum, median, and mean incomes, offering a holistic view of the nation's income landscape. Initial observations from the table indicate that both median and mean incomes sit above Bolivia's legally mandated minimum wage of 2,250 bs. monthly. This is a promising sign, suggesting that a sizable segment of the population earns above the minimum threshold. However, a noteworthy point of concern is the vast disparity between the minimum and maximum incomes, hinting at potential income inequalities within the nation.
+
+The stark contrast between the highest and lowest incomes cannot be ignored. Such a pronounced disparity can be indicative of deep-rooted economic inequalities, with certain sectors or demographics reaping more significant financial rewards than others. To gain a clearer understanding of these disparities and their potential implications, it's imperative to delve deeper into the data, exploring the factors and contexts that contribute to this vast income range.
+
+```{r include=FALSE}
+df_data %>%
+  filter(!is.na(Monthly_Income), Monthly_Income < 2250) %>%
+  summarise(Count = n())
+
+```
+
+```{r include=FALSE}
+df_data %>%
+  filter(!is.na(Monthly_Income), Monthly_Income > 2250) %>%
+  summarise(Count = n())
+
+```
+
+In our dataset, a concerning trend emerges regarding poverty. Out of the respondents, 3,115 individuals reported incomes that place them below the poverty line, while 6,087 respondents live above this threshold. This translates to nearly a 50% poverty rate among the surveyed population. Such a high rate underscores significant economic challenges and disparities within Bolivia. These statistics serve as a stark reminder of the urgent need for interventions and policies aimed at economic upliftment and reducing income inequalities.
+
+The mean is sensitive to extreme values, and in this case, the large number of individuals with lower incomes would exert a downward force on the average. On the other end of the spectrum, a mere 15 individuals report monthly earnings exceeding 70,000 Bs., an amount that's nearly 30 times the minimum wage. Such outliers could also influence the overall average. However, the median, which represents the middle value when incomes are sorted in ascending order, might be a more robust measure in this scenario. Given that almost half of the respondents live above poverty, the median could potentially hover around the boundary that separates poverty and above-poverty incomes. In essence, while the mean might provide a somewhat skewed representation due to the the extremes, the median offers a clearer snapshot of the central tendency of the income distribution, especially in the context of this pronounced economic divide.
+
+```{r include=FALSE}
+df_data %>%
+  filter(!is.na(Monthly_Income), Monthly_Income > 70000) %>%
+  summarise(Count = n())
+
+```
+
+To gain a comprehensive understanding of the spread and concentration of incomes in Bolivia, the upcoming figure presents both a histogram and a box plot. The histogram showcases the frequency distribution of respondents' incomes, offering a visual representation of where most of the population's income falls. In tandem, the box plot provides a succinct summary of the data's central tendency, spread, and potential outliers, highlighting the interquartile range and median income. Together, these visual aids not only illustrate the broader economic landscape but also pinpoint specific areas of concentration, disparity, and potential anomalies within the dataset.
+
+```{r echo=FALSE, fig.cap="Figure 19: Histogram of Monthly Incomes"}
+# Monthly Income Histogram
+df_data %>%
+  filter(!is.na(Monthly_Income),Monthly_Income < 70000) %>%
+  ggplot(aes(x = Monthly_Income)) +
+  geom_histogram(bins = 150, fill = 'steelblue', color = 'black') +
+  theme_minimal() +
+  labs(x = "Monthly Income (Bs.)", y = "Frequency",
+       title = "Histogram of Monthly Incomes")
+```
+
+
+From the histogram, it's evident that a significant portion of the population earns an income that is clustered around a particular range, which appears to be below the 10,000 bs. mark. This concentration suggests that a sizable segment of the population might be earning close to or just above the minimum wage. As income levels increase, fewer individuals fall within those higher brackets, indicating a decreasing prevalence of higher earners.
+
+```{r echo=FALSE, fig.cap="Figure 20: Box Plot of Monthly Incomes"}
+# Monthly Income Box Plot
+df_data %>%
+  filter(!is.na(Monthly_Income), Monthly_Income < 70000) %>%
+  ggplot(aes(x = "", y = Monthly_Income)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(x = "", y = "Monthly Income (Bs.)",
+       title = "Box Plot of Monthly Income")
+```
+
+
+The box plot confirms the observations from the histogram. The median income, indicated by the line inside the box, is situated in the lower income range, reinforcing the idea that a significant proportion of Bolivians earn near the minimum wage. The long whisker and potential outliers suggest that while there are individuals with substantially higher incomes, they are relatively few in number compared to the broader population.
+
+One way to make these visualizations clearer, is by filtering out high-earners. Arbitrarily choosing a 20,000 Bs. limit, which only makes up 2% of the respondents, we find the following plots:
+
+```{r include=FALSE}
+df_data %>%
+  filter(!is.na(Monthly_Income)) %>%
+  summarise(Percentage = sum(Monthly_Income > 20000) / n() * 100)
+
+```
+
+```{r echo=FALSE, fig.cap="Figure 21: Histogram of Monthly Incomes (Excluding Incomes above 20,000)"}
+# Based visually on the histogram, setting a limit at 20,000 Bs. per month 
+# (roughly, $3,000 dollars monthly) 
+# Monthly Income Histogram
+df_data %>%
+  filter(!is.na(Monthly_Income),Monthly_Income < 20000) %>%
+  ggplot(aes(x = Monthly_Income)) +
+  geom_histogram(bins = 150, fill = 'steelblue', color = 'black') +
+  theme_minimal() +
+  labs(x = "Monthly Income (Bs.)", y = "Frequency",
+       title = "Histogram of Monthly Income (Excluding Incomes over 20,000)")
+
+```
+
+
+The histogram reveals a pronounced peak in the lower income ranges, suggesting that a significant portion of Bolivians earn close to the minimum wage. The concentration of data points in the lower bins further emphasizes the economic challenges faced by many in the country.
+
+```{r echo=FALSE, fig.cap="Figure 22: Box Plot of Monthly Incomes (Excluding Incomes above 20,000)"}
+# Monthly Income Box Plot
+df_data %>%
+  filter(!is.na(Monthly_Income), Monthly_Income < 20000) %>%
+  ggplot(aes(x = "", y = Monthly_Income)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(x = "", y = "Monthly Income (Bs.)",
+       title = "Box Plot of Monthly Income (Excluding Incomes above 20,000)")
+```
+
+
+The box plot complements the histogram's findings. With the median line positioned towards the lower end of the box, it's evident that the central tendency of incomes skews towards the lower end. Additionally, the presence of data points below the lower whisker highlights instances of extremely low earnings.
+
+Moving from a holistic view of Bolivia's income landscape, it's crucial to delve into regional differences. Bolivia's diverse departments, each with its unique economic activities and challenges, likely display varied income patterns. The next figure endeavors to shed light on these disparities, presenting the average monthly income for each department.
+
+```{r echo=FALSE, fig.cap="Figure 23: Average Monthly Income by Department"}
+# Out of curiosity, what is the average monthly income per department? 
+df_data %>%
+  filter(!is.na(Monthly_Income)) %>%
+  group_by(Department) %>%
+  summarise(avg_income = mean(Monthly_Income)) %>%
+  ggplot(aes(x = Department, y = avg_income)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Average Monthly Income (Bs.)", title = "Average Monthly Income per Department")
+# Well, Santa Cruz has the highest average followed by Beni and Pando, which is a 
+# little unexptected. How would that change removing some of the "outliers"?
+```
+
+Santa Cruz stands out as the department with the highest average income, closely followed by Beni and Pando, both of which register average mothly incomes above 6,000 bs. This suggests that these regions may have thriving economic sectors or opportunities that elevate the average earnings of their residents. Conversely, Potosi emerges with the most modest average income, hovering just above the national minimum wage. Such disparities underscore the varied economic dynamics at play in different parts of Bolivia and the challenges some regions may face in ensuring economic prosperity for their inhabitants.
+
+Having explored average incomes, it's imperative to pivot our focus towards a pressing concern: the proportion of individuals earning below the minimum wage. While averages provide an overall perspective, they might sometimes mask underlying challenges. By examining the percentage of individuals earning below the minimum wage across departments, we can identify regions that might be grappling with more profound economic vulnerabilities.
+
+```{r echo=FALSE, fig.cap="Figure 24: Percentage of Respondents Earning Below Minimum Wage by Department"}
+df_data %>%
+  filter(!is.na(Monthly_Income)) %>%
+  group_by(Department) %>%
+  summarise(Percentage = sum(Monthly_Income < 2250) / n() * 100) %>%
+  ggplot(aes(x = Department, y = Percentage)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Percentage of People", 
+       title = "Percentage of Respondents Earning Below Min. Wage by Department")
+
+# Seems like the high earners really like living in Santa Cruz and Beni.
+```
+
+Santa Cruz emerges as the department with the most promising figures, with less than 20% of respondents earning below the minimum wage. This aligns with its higher average income and suggests a relatively prosperous economic environment. In stark contrast, both Potosi and Chuquisaca display alarming figures, with almost 60% of their populations earning below the threshold. Such high percentages indicate systemic challenges that might be suppressing incomes in these areas. Pando, intriguingly, presents a conundrum. Despite boasting a high average monthly income, almost 40% of its residents earn below the minimum wage. This dichotomy suggests that while some sectors or individuals in Pando might be thriving, a significant portion of the population remains economically vulnerable.
+
+From assessing economic vulnerabilities, we now turn our gaze to the upper echelons of the income spectrum. High earners, those earning above 20,000 bs. per month, can provide insights into the peaks of economic prosperity within Bolivia's diverse departments. Such an analysis not only offers a glimpse into regions with potentially thriving sectors but also brings to light any juxtapositions in the income landscape.
+ 
+```{r echo=FALSE, fig.cap="Figure 25: Percentage of High Earners (>20,000 bs. per month) by Department"}
+df_data %>%
+  filter(!is.na(Monthly_Income)) %>%
+  group_by(Department) %>%
+  summarise(Percentage = sum(Monthly_Income > 20000) / n() * 100) %>%
+  ggplot(aes(x = Department, y = Percentage)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Percentage", 
+       title = "Percentage of High Earners (>20,000 bs. per month) by Department")
+
+```
+
+It's riveting to note that the majority of individuals earning above 20,000 bs. reside in Santa Cruz, Pando, and Beni. Santa Cruz's presence in this list aligns with its previous economic indicators, especially its notably low percentage of people living below the minimum wage. However, Pando's position is a captivating revelation. Despite a significant segment of its population earning below the minimum wage, Pando also hosts a considerable number of high earners. This stark income disparity within Pando suggests the presence of distinct economic sectors or circumstances, with some individuals reaping substantial benefits while others face economic challenges.
+
+##### Summary Conclusion of Income Analysis
+Our exploration of incomes in Bolivia has unveiled a multifaceted economic landscape, characterized by both prosperity and challenges. From the national distribution of monthly incomes to the intricate departmental disparities, our insights have shed light on the depth and breadth of Bolivia's economic dynamics. Santa Cruz consistently emerged as a beacon of economic prosperity, while departments like Potosi and Chuquisaca presented more concerning economic indicators. Pando stood out as an enigma, showcasing both the highs and lows of the economic spectrum within its boundaries. Such disparities underscore the importance of tailored economic policies and interventions that address the unique needs of each region.
+
+As we transition from understanding the economic backdrop, our focus now shifts to the heart of this study: migratory patterns in Bolivia. With a grasp on the economic realities faced by Bolivians, we are better equipped to delve into the nuances of migration, seeking to understand its drivers, trends, and implications.
+
+### Migratory Patterns in Bolivia
+
+After a comprehensive preliminary exploration of Bolivia's socio-economic fabric, from its educational landscape to its income dynamics, we now dive deep into the main theme of our study: the migratory patterns of Bolivians. Migration is a multifaceted phenomenon, often intertwined with the very socio-economic elements we've studied. Whether driven by the pursuit of better opportunities, economic necessities, or personal aspirations, migration shapes and is shaped by the larger narrative of a nation's growth and challenges.
+
+In this in-depth analysis, we'll explore multiple facets of migration:
+
+**Migration from Abroad:** Bolivians who sought opportunities beyond national borders provide insights into global aspirations and the international perception of Bolivia's prospects.
+
+**National Migration:** Delving into internal movements, we aim to understand the regions that are magnets for migration and those that witness significant outflows. Such patterns can highlight areas of economic and social prosperity, as well as regions that might be facing challenges.
+
+**Focus on Santa Cruz:** Given its prominence in our earlier analyses, especially in the economic sphere, a dedicated exploration of migration into Santa Cruz becomes imperative. As a potential hub of opportunity, understanding its allure can provide actionable insights for national policy-making and regional development strategies.
+
+Throughout this analysis, our goal is to weave together the threads of our preliminary findings with the intricate patterns of migration, crafting a holistic narrative of Bolivia's current socio-economic and migratory landscape.
+
+#### Refresher
+
+In the extensive dataset capturing the voices of Bolivians, it's pivotal to recall the geographical distribution of our respondents. With a rich mix from departments like La Paz, Santa Cruz, and Cochabamba leading in response count, we have a diverse range of perspectives at our disposal. As we dive into the migratory patterns, a significant preparatory step involved refining our dataset. To truly capture migration nuances, we've excluded respondents who haven't experienced migration, narrowing our focus on those who've undergone this transformative journey.
+
+```{r echo=FALSE, fig.cap="Figure 26: Distribution of Residence in 2016 by Department"}
+df_data %>%
+  filter(Residence_2016 != "Not yet born") %>%
+  group_by(Department)%>%
+  ggplot(aes(x = Department, fill = Residence_2016)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses", title = "Distribution of Residence in 2016 by Department", fill = "Residence in 2016")
+```
+
+
+Of the robust 42,000 responses we initially had, only 1,564 respondents have actually migrated, underscoring the selective nature of migration and its relative rarity.
+
+Our forthcoming figure delves into this filtered dataset, presenting the distribution of these migrants. Specifically, it differentiates between those who chose national relocation versus those who ventured internationally, offering a primary glimpse into the scales and directions of Bolivian migration.
+
+```{r include=FALSE}
+# How many respondents are answering from the same Department where they
+# were located in 5 years earlier from date of survey (2016)? 
+df_data %>%
+  filter(Residence_2016 != 'Here', Residence_2016 != 'Not yet born', !is.na(Residence_2016)) %>%
+  count()
+# Only 1,564 respondents have moved or migrated. 
+```
+
+```{r include=FALSE}
+# Make a separate data frame that includes only the migrants. 
+df_migrants <- df_data %>%
+  filter(Residence_2016 != 'Here', Residence_2016 != 'Not yet born', !is.na(Residence_2016))
+  
+```
+
+```{r echo=FALSE, fig.cap="Figure 27: Distribution of Bolivian Migrants - National vs. International"}
+# Lets visualize the migrant patterns
+df_migrants %>%
+  ggplot(aes(x = Residence_2016)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(x = "Residence in 2016", y = "Responses",
+       title = "Distribution of Bolivian Migrants - National vs. International")
+# As expected, there is a lot more movement at the national level. 
+```
+
+The data elucidates a marked inclination towards national migration since 2016. A considerable majority of Bolivians who've moved have done so within the country's boundaries. The relatively limited number of international returns emphasizes the strength of domestic relocation trends. This might hint at various factors, from economic opportunities in specific departments to socio-cultural ties pulling individuals back to familiar regions within Bolivia. It also sheds light on the dynamics of Bolivians abroad; the limited international returns might suggest either satisfaction with their current international locations or potential barriers to repatriation.
+
+#### Migrants Coming from Abroad
+
+Diving deeper into the migratory patterns, we now turn our attention to Bolivians moving back from abroad since 2016. This aspect of the study provides a unique lens into the global footprint of Bolivians and the push and pull factors influencing their decisions to return home. Whether driven by global economic dynamics, personal reasons, or geopolitical shifts, understanding these patterns can offer valuable insights into Bolivia's position in the global context.
+
+```{r echo=FALSE, fig.cap="Figure 28: Countries of Origin for Bolivians Returning since 2016"}
+#Where are Bolivians moving from abroad?
+df_migrants %>%
+  filter(Residence_2016 == "Abroad") %>%
+  ggplot(aes(x = Country_2016)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Country of Residence in 2016", y = "Responses",
+       title = "Countries of Origin for Bolivians Returning since 2016")
+# Lot's of people coming in from Argentina.The top 7 countries are all Hispanic
+# and all but Spain are in South America. Only a handful of people coming from 
+# the US and Europe. 
+```
+
+
+Interestingly, Argentina emerges as the primary source of returnees to Bolivia. This might be influenced by Argentina's economic challenges, particularly the inflation surge from 26% to 40% in 2016, possibly pushing Bolivians to seek stability back home. Furthermore, among the top countries of origin, all but Spain are Hispanic-speaking nations in South America. This emphasizes the cultural and linguistic ties that might influence migration decisions. Beyond these core countries, only a few Bolivians have returned from the US and Europe, suggesting varied experiences or differing motivations for Bolivians in these regions.
+
+##### Sex of International Migrants
+
+Having understood the geographical origins of returning Bolivians, it's essential to delve into demographic nuances. One such facet is the gender distribution among these international migrants. This can provide insights into any gender-specific trends or anomalies that might be present within the returning population.
+
+```{r echo=FALSE, fig.cap="Figure 29: Gender Distribution among Returning Migrants"}
+# Is there anything significant with Sex and migration from abroad?
+df_migrants %>%
+  filter(Residence_2016 == "Abroad") %>%
+  ggplot(aes(x = Country_2016, fill = Sex)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Country of Residence in 2016", y = "Responses",
+       title = "Gender Distribution Among Returning Migrants")
+# Pretty even other than in a few countries dominated by male migration. Deportation?
+
+```
+
+Overall, there's a balanced representation of genders among the returning migrants, suggesting that both men and women have comparable motivations or circumstances for repatriation. However, a peculiar observation arises with migrants from France, Ireland, Ecuador, and Uruguay, where 100% of the returnees are male. Given the small numbers, it's challenging to deduce a concrete reason. One hypothesis could be educational or specific employment opportunities that ended, but without further data, it remains a point of intrigue. 
+
+##### Age of International Migrants
+
+After gleaning insights into the gender distribution of returning Bolivians, our focus now shifts to age demographics. Age can serve as a window into the stages of life at which individuals decide to return, revealing motivations ranging from career/education opportunities to familial ties or retirement.
+
+```{r echo=FALSE, fig.cap="Figure 30: Age Distribution among Returning Migrants"}
+# What is the average age? 
+df_migrants %>%
+  filter(Residence_2016 == "Abroad") %>%
+  group_by(Country_2016) %>%
+  summarise(Avg_Age = mean(Age, na.rm = TRUE)) %>%
+  ggplot(aes(x = Country_2016, y = Avg_Age)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Country of Residence in 2016", y = "Average Age",
+       title = "Average Age Distribution Among Returning Migrants")
+# There seems to be a trend with higher average age coming from higher income
+# countries (US, France, Spain, Italy). Could they be coming back to retire?
+```
+
+Distinct patterns emerge when examining the average age of returnees. Paraguay, Italy, and the USA stand out with the highest average ages, hovering around the 50-year mark. This might suggest a cohort of individuals returning possibly for retirement or after long-term stays abroad. In contrast, most other countries present an average age around 30 years, indicating a younger demographic of returnees. The youngest group, intriguingly, hails from Ireland, potentially pointing to students or young professionals concluding their overseas endeavors and choosing to return home. 
+
+##### Reasons for Repatriation
+
+While age offers a window into the stages of life at which individuals decide to return, the reasons behind these decisions provide deeper insights. Delving into the motivations that drive Bolivians to repatriate can help us understand the pull factors of Bolivia and the push factors from their countries of residence.
+
+```{r echo=FALSE, fig.cap="Figure 31: Reasons for Repatriation among International Migrants"}
+# What is the top reason for people to move by country? 
+df_migrants %>%
+  filter(Residence_2016 == "Abroad") %>%
+  group_by(Country_2016, Reason) %>%
+  summarise(Count = n(), .groups = "drop_last") %>%
+  slice_max(Count, n = 1, with_ties = FALSE) %>%
+  ungroup()%>%
+  kable(caption = "Table 3: Top Reasons for Repatriation Among International Migrants","html")
+# Well that doesn't say too much. Top reason for leaving is "Family Reason"
+```
+
+
+
+A dominant reason that emerges for repatriation is family-related considerations. This highlights the strong familial and cultural ties that Bolivians maintain, even when abroad. Interestingly, our earlier observation about the younger demographic from Ireland finds validation: education emerges as a significant reason. This suggests that many might have ventured abroad for educational opportunities and upon completion, chose to return to their homeland, reinforcing the idea that Bolivia's pull remains strong across various life stages and experiences.
+
+##### Labor and Employment of International Migrants
+
+Having understood the motivations behind repatriation, it's essential to cast a spotlight on the professional lives of these returning Bolivians. The occupations they held while abroad can offer insights into the types of opportunities they sought, the industries they engaged with, and the skills they might be bringing back to Bolivia.
+
+```{r echo=FALSE, fig.cap="Table 4: Top Occupations of Returning Bolivians"}
+# Top employment type?
+df_migrants %>%
+  filter(Residence_2016 == "Abroad", !is.na(Occupation)) %>%
+  group_by(Country_2016, Occupation) %>%
+  summarise(Count = n(), .groups = "drop_last") %>%
+  slice(which.max(Count)) %>%
+  ungroup()%>%
+  kable(caption = " Table 4: Top Occupation of Returning Bolivians","html")
+# Mostly unskilled laborers... 
+```
+
+
+
+The table offers a segmented view of the occupations held by returning Bolivians based on their country of residence in 2016. Argentina, a leading country of origin for migrants, predominantly features returnees now in the service and merchant sectors. Similarly, service roles are also a common occupation for Bolivians returning from Colombia, Spain, Peru, and Venezuela.
+
+Interestingly, Brazil, Chile, France, and Uruguay highlight a trend towards the construction and manufacturing industries. This suggests that Bolivians in these countries were actively engaged in hands-on, industry-driven roles. A noteworthy mention is the United States, where the sole respondent was involved in a scientific and intellectual profession, while Italy saw a returnee from a mid-level technician role. Paraguay's lone respondent was engaged in agriculture, livestock, or fishing.
+
+These insights underscore the diverse range of industries and roles Bolivians immerse themselves in while abroad, reflecting both the opportunities available in these countries and the versatile skills of the Bolivian diaspora. 
+
+##### Income of Returning Bolivians
+
+Having unraveled the professional trajectories of returning Bolivians, we now turn to a pivotal aspect of their post-migration experience: their economic standing in Bolivia. By understanding their current financial situation, we can gauge the economic impact of their time spent abroad and determine if their international experiences have translated into tangible economic benefits upon their return.
+
+```{r echo=FALSE, fig.cap="Table 5: Average Monthly Income of Returning Bolivians by Country (2016)"}
+# Average Monthly Income of internatioal migrants
+df_migrants %>%
+  filter(Residence_2016 == "Abroad", !is.na(Monthly_Income)) %>%
+  group_by(Country_2016) %>%
+  summarise(Avg_Monthly_Income = mean(Monthly_Income, na.rm = TRUE)) %>%
+  ungroup()%>%
+  kable(caption = "Table 5: Average Monthly Income (Bs.) of Returning Bolivians by Country of Origin","html",
+        digits = 2, col.names = c('Country','Average Monthly Income (Bs.)'))
+ 
+```
+
+
+
+The table furnishes intriguing insights into the financial trajectory of Bolivians post their international sojourns. Spain and Paraguay stand out, with returnees from these countries currently earning higher average monthly incomes in Bolivia. This is closely trailed by those from Chile and Italy. In contrast, returnees from Colombia and Argentina currently report more modest earnings, validated partially by the occupations previously held.
+
+Such disparities raise pertinent questions: Did the international exposure in countries like Spain and Paraguay equip Bolivians with skills or experiences that are particularly valued in Bolivia's job market? Alternatively, did the socio-economic conditions of their host countries influence their aspirations and career choices upon return? While these figures offer a starting point, they also underscore the multifaceted nature of economic mobility and the myriad factors influencing it. It's a compelling argument for the potential benefits of international exposure, though a deeper dive would be needed to draw concrete conclusions.
+
+##### Geographic Resettlement of Repatriates in Bolivia 
+
+Having delved into the economic trajectories of returning Bolivians, we now shift our focus to their geographic resettlement within Bolivia. By identifying which departments these repatriates chose to settle in, we can uncover patterns and perhaps discern underlying motivations related to their countries of origin.
+
+```{r echo=FALSE, fig.cap="Figure 31: Distribution of Top Three Countries of Origin by Current Department in Bolivia"}
+# What department are they living in now?
+df_migrants %>%
+  filter(Residence_2016 == "Abroad") %>%
+  group_by(Department, Country_2016) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  arrange(Department, -Count) %>%
+  group_by(Department) %>%
+  slice_max(order_by = Count, n = 3) %>%
+  ggplot(aes(x = Department, y = Count, fill = Country_2016)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses",
+       title = "Distribution Top Three Countries of Origin per Department",
+       fill = "Country")
+
+```
+
+
+A notable trend is observed in Chuquisaca, which boasts a significant number of returnees from Argentina. This is likely influenced by its geographical proximity, as Chuquisaca essentially shares a border with Argentina. In contrast, Cochabamba emerges as a hub for European returnees, suggesting potential cultural or economic affinities. Santa Cruz and La Paz, two major urban centers, show distinct patterns with high numbers of Chilean and Brazilian returnees, respectively. This could be indicative of the economic opportunities or lifestyle these cities offer that align with the experiences of returnees from those countries. Interestingly, Beni and Pando stand out as the only departments without a dominant Argentine migrant presence, hinting at unique migration patterns or preferences for these regions.
+
+##### Summary Conclusion of Migration from Abroad Analysis
+
+The exploration of Bolivian repatriates offers a multifaceted view into the lives of those who ventured abroad and then made the conscious decision to return. Through our analysis, several salient points emerge:
+
+**Occupational Landscape:** Bolivians abroad predominantly found themselves in the service, retail, and construction/manufacturing sectors. Such a distribution suggests that many Bolivians abroad might have been involved in roles that required direct interaction or hands-on skills, reflecting the industries where Bolivians found the most success or demand.
+
+**Economic Outcomes:** Upon return, there's evidence of diverse economic trajectories. Notably, those who returned from Spain and Paraguay are currently enjoying higher average incomes in Bolivia, potentially signifying that experiences in certain countries might have equipped returnees with skills or experiences that are valued in Bolivia's job market.
+
+**Geographic Resettlement:** The patterns of resettlement within Bolivia post-return are intriguing. Proximity seems to play a role, as seen with the influx of Argentine returnees to Chuquisaca. Yet, other patterns, such as the European returnee concentration in Cochabamba and the distinct Chilean and Brazilian returnee patterns in Santa Cruz and La Paz, respectively, suggest a blend of economic, cultural, and personal factors at play.
+
+**Demographic Trends:** The gender distribution among returnees is generally balanced, though certain countries of origin, like France and Ireland, showed anomalies. Age-wise, the spectrum is wide, with countries like Paraguay, Italy, and the USA having older returnees, while others, notably Ireland, had a notably younger demographic.
+
+In essence, the journey of Bolivians abroad and their subsequent return is a tapestry of experiences, influenced by a myriad of factors ranging from economic aspirations to personal motivations. As Bolivia continues to evolve, understanding these patterns and the insights they offer can be instrumental in shaping policies and fostering an environment that resonates with the aspirations and needs of its returning diaspora.
+
+#### Migration within Bolivia
+
+Migration, while often considered in international contexts, also has significant domestic dimensions. Within the expansive and diverse landscapes of Bolivia, individuals and families move between departments, seeking opportunities, better living conditions, or sometimes just a change. As we delve into the national migration patterns of Bolivia, we aim to uncover the intricate dance of population shifts between its various departments.
+
+A key aspect of this section will be an analysis of the net migratory changes across each department. By examining these shifts, we can gain insights into which regions are burgeoning hubs of attraction and which might be experiencing outflows. Such patterns can offer a wealth of information on the socio-economic and cultural dynamics at play within Bolivia's borders.
+
+**NOTE:** It's crucial to highlight that while the dataset also captures movements within departments, i.e., from one municipality to another, such intra-departmental shifts are not the focus of this analysis and will be filtered out to provide a clearer perspective on broader migratory trends.
+
+With this context in place, let's embark on our journey through Bolivia's internal migration landscape.
+
+##### Current Destinations of Internal Migrants
+
+As we embark on understanding the internal migration patterns within Bolivia, a fundamental question arises: Where are people migrating to? By identifying the current department of residence of migrants, we can discern which regions are the most attractive or promising for Bolivians on the move.
+
+```{r echo=FALSE, fig.cap="Figure 32: Distribution of Migrants by Current Department of Residence (2021)"}
+# Where are the respondents currently living? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses",
+       title = "Distribution of Migrants by Current Department of Residence (2021)",
+       fill = "Department")
+# Well, I expected Santa Cruz to have the highest count. Instead, it's in third
+# behind La Paz and Cochabamba with over 250 people moving there. This is effectively 
+# showing where people are moving too. 
+```
+
+
+Contrary to initial expectations that Santa Cruz would lead the pack given its economic dynamism and urban allure, it ranks third in attracting migrants. La Paz and Cochabamba outpace it, with Cochabamba drawing almost 150 individuals. This underscores the diverse motivations for internal migration; while economic prospects might be a draw for many, cultural, familial, or other socio-economic factors could also play significant roles in these migration decisions. Such patterns emphasize the importance of looking beyond the obvious and considering a multitude of factors that influence people's choices to relocate.
+
+##### Origins of Internal Migrants
+
+After understanding the preferred destinations of Bolivia's internal migrants, it's equally crucial to delve into their points of origin. Knowing where people are migrating from can offer a complementary perspective, shedding light on regions that might be experiencing population outflows and the possible reasons behind them.
+
+```{r echo=FALSE, fig.cap="Figure 33: Distribution of Migrants by Department of Origin (2016)"}
+# Where are they moving from?
+# First, it's possible for people to have moved within their own department, which
+# would show up as a move. They need to be filtered out, as this analyis is only looking
+# at inter-departmental migration. 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department_2016)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses",
+       title = "Distribution of Migrants by Department of Origin (2016)",
+       fill = "Department")
+# Intersting that the top three departments of origin since 2016 are La Paz, 
+# Santa Cruz, and Cochabamaba in that order. They are hovering around 250 responses. 
+# This is effectively telling us where people are moving away from. 
+```
+
+
+The data reveals intriguing patterns regarding the starting points of these migratory journeys. The top three departments of origin since 2016 are La Paz, Santa Cruz, and Cochabamba, with Santa Cruz leading (200+). While these are major hubs in Bolivia, it's noteworthy that they also lead in departures, suggesting a dynamic interplay of factors driving people both to and from these regions. This not only signifies the vibrancy and flux within these departments but also underscores the intricate motivations behind such moves.
+
+##### Net Migratory Change
+
+Having explored the distinct dimensions of where people are migrating to and from, it's essential to consolidate these findings. By juxtaposing the inflow and outflow of migrants, we can determine the net migratory change for each department, providing a holistic understanding of migration dynamics within Bolivia.
+
+```{r echo=FALSE, fig.cap="Figure 34: Net Migratory Change by Department"}
+# So what does the net migratory change look like per department? 
+# Calculate counts for each department in the current year and in 2016
+current_counts <- df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country",as.character(Department) != as.character(Department_2016)) %>%
+  group_by(Department) %>%
+  summarise(Count = n(), .groups = "drop")
+
+previous_counts <- df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country",as.character(Department) != as.character(Department_2016)) %>%
+  group_by(Department_2016) %>%
+  summarise(Previous_Count = n(), .groups = "drop")
+
+# Merge these counts into one data frame
+df_counts <- left_join(current_counts, previous_counts, by = c("Department" = "Department_2016"))
+
+# Calculate net change for each department
+df_counts <- df_counts %>%
+  mutate(Net_Change = Count - Previous_Count)
+
+# Plot bar chart of net change
+ggplot(df_counts, aes(x = Department, y = Net_Change, fill = Net_Change < 0)) +
+  geom_col() +
+  scale_fill_manual(values = c("blue", "red"), 
+                    labels = c("Inflow", "Outflow"), 
+                    breaks = c(FALSE, TRUE)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Net Change", 
+       title = "Net Change in Migration by Department",
+       fill = "Migratory Flow")
+# Based off this data, Santa Cruz has the highest migratory difference, in the 
+# negative direction. More people are leaving Santa Cruz than they are coming in 
+# by quite a large margin. La Paz, Oruro and Pando all have roughly the same net
+# change, though La Paz is the only one that's negative. 
+```
+
+
+The composite view offers several intriguing revelations. Most prominently, Santa Cruz exhibits the highest migratory difference, but it's skewed towards emigration, suggesting a net outflow from the department. Similarly, La Paz is witnessing a population drain. Contrarily, nearly every other department showcases positive immigration, indicating they're attracting more residents than they're losing. This pattern is particularly unexpected and runs counter to initial hypotheses. However, it's crucial to approach these findings with caution, considering the relatively limited number of responses that might not capture the full spectrum of Bolivia's internal migration landscape.
+
+##### Internal Migratory Patterns by Sex
+
+It's crucial to explore another dimension of Bolivia's internal migration: the gender dynamics. By understanding how male and female migrants distribute across departments, we can gain insights into any gender-specific patterns that might emerge. Let's examine a representation of the current residence of migrants, segmented by gender, to unveil any such trends.
+
+```{r echo=FALSE, fig.cap="Figure 35: Gender Distribution Across Departments for Internal Migrants since 2016."}
+# What's the distribution of Internal Migrants by sex
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department, fill = Sex)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses",
+       title = "Distribution of Migrants by Sex per Department (2021)",
+       fill = "Sex")
+```
+
+
+The visualization reveals a balanced gender distribution among migrants in key departments like La Paz, Cochabamba, and Santa Cruz. However, a slight inclination towards female migrants is noticeable in Potosí and Chuquisaca.
+
+##### Average Age of Migrants within Bolivia
+
+After examining the gender distribution of internal migrants across various departments, it's essential to delve into another demographic facet: age. Age can provide insights into whether younger populations are more mobile or if older generations are relocating for various reasons. In the forthcoming analysis, we'll explore the average age of migrants within each department to shed light on these patterns.
+
+```{r echo=FALSE, fig.cap="Figure 36: Distribution of the Current Average Age of Migrants within Bolivia."}
+# What is the average age of internal migrants? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country") %>%
+  group_by(Department) %>%
+  summarise(Avg_Age = mean(Age, na.rm = TRUE)) %>%
+  ggplot(aes(x = Department, y = Avg_Age)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Average Age",
+       title = "Distribution of Current Average Age Among Internal Migrants")
+```
+
+
+The average age of migrants in Bolivia varies slightly across departments. Santa Cruz leads the chart with an average age of approximately 29, closely followed by Pando. This might suggest a certain age group being more inclined to migrate to these areas, possibly for employment, education, or other opportunities. Conversely, Chuquisaca, with the lowest average age among migrants, might attract younger individuals. Overall, the age distribution is relatively consistent across departments, with most averages hovering around the late twenties.
+
+##### Reasons for Migration Within Bolivia
+
+Beyond the demographic elements of age and gender, understanding the reasons why people migrate offers profound insights into the socio-economic and cultural factors influencing their decisions. Are they moving for job opportunities, education, family reasons, or other drivers? In the subsequent analysis, we'll enumerate the reasons given by respondents for their internal migrations within Bolivia.
+
+```{r echo=FALSE, fig.cap="Table 6: Enumeration of reasons given by respondents for their internal migrations within Bolivia"}
+# What is the top reason for people to move? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country") %>%
+  group_by(Reason) %>%
+  summarise(Count = n()) %>%
+  ungroup()%>%
+  kable(caption = "Table 6: Reasons for Internal Migration","html")
+```
+
+
+
+The predominant reason for internal migration within Bolivia, as revealed by the respondents, is for "Family Reasons", accounting for a significant portion of the migrations. This underscores the role of familial ties in influencing mobility decisions. In second place, "Job Search" is a key driver, followed closely by "Work Transfer", suggesting employment opportunities and changes play pivotal roles in migration. Additionally, "Education" and "Health" indicate that access to better facilities or institutions can also be compelling reasons to relocate. It's worth noting that a segment of respondents cited other unspecified reasons, underscoring the myriad personal and unique factors that can contribute to the decision to migrate.
+
+##### Labor and Employment of Migrants within Bolivia
+
+As we navigate deeper into understanding the occupational landscapes of internal migrants within Bolivia, it becomes vital to discern the predominant professions in each department. Recognizing these patterns not only provides insights into the local economic environment but also uncovers the potential opportunities or challenges that might influence migratory decisions.
+
+```{r echo=FALSE, fig.cap="Figure 37: Distribution of the Top Three Occupations in Each Department for Internal Migrants within Bolivia."}
+# Top three employment type by department
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", !is.na(Occupation)) %>%
+  group_by(Department, Occupation) %>%
+  summarise(Count = n(), .groups = "drop_last") %>%
+  slice_max(Count, n = 3)%>%
+  ggplot(aes(x = Department, y = Count, fill = Occupation)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Responses",
+       title = "Top Occupations of Migrants Within Bolivia by Department",
+       fill = "Occupation")
+```
+
+
+The occupational distribution of migrants who've relocated within Bolivia since 2016 reveals the interplay between migration and economic opportunities:
+
+The significant count of Service Workers/Merchants in departments like Cochabamba, La Paz, and Potosi suggests that these regions might have been attractive to migrants due to burgeoning opportunities in the service and retail sectors or due to existing familial or community ties in these sectors.
+Beni, Cochabamba, La Paz, and Santa Cruz's prominence in Construction/Manufacturing Industry Workers might indicate that recent industrial or infrastructural projects in these areas have drawn migrants in search of stable employment.
+Potosi, and Tarija, are intriguingly highlighted by the dominance of Agriculture, Livestock, and Fishing, could imply that these regions have either retained or attracted individuals keen on pursuing or continuing careers in primary production sectors.
+Oruro's standout pattern with "Mid-Level Technicians" perhaps signals a specific local industrial boom or technological advancement, such as the massive 50 MW Solar Farm started in 2016, making it a point of attraction for migrants with those skill sets. 
+
+In essence, the occupational trends of recent migrants offer a lens into the dynamic economic landscapes of Bolivia's departments and provide clues about the driving forces behind internal migration patterns since 2016. Both Oruro and Potosi are home to some of the world's largest reserves of lithium which may hint at future migratory pattern shifts.
+
+##### Average Current Income of Internal Migrants
+
+As we continue to unravel the intricacies of internal migration within Bolivia, economic factors naturally come to the forefront. The allure of better job opportunities, higher wages, or even the promise of a more comfortable lifestyle can be compelling reasons for individuals to relocate. To shed light on this dimension, let's delve into the average monthly incomes across different departments, specifically focusing on those who've migrated within Bolivia since 2016. This will provide a clearer picture of the financial landscapes that may be influencing migratory decisions.
+
+```{r echo=FALSE, fig.cap="Figure 38: Distribution of Average Monthly Income by Department of Internal Migrants."}
+# What is the average monthly income of internal migrants? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country") %>%
+  group_by(Department) %>%
+  summarise(Avg_Income = mean(Monthly_Income, na.rm = TRUE)) %>%
+  ggplot(aes(x = Department, y = Avg_Income)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department", y = "Average Monthly Income (Bs.)",
+       title = "Distribution of Current Average Monthly Income Among Internal Migrants")
+```
+
+
+The economic landscape, as illustrated by average monthly incomes, exhibits clear disparities among the departments. While Santa Cruz, Beni, Chuquisaca, and Cochabamba lead with the highest average incomes, departments like Potosí and Oruro register significantly lower averages. This discrepancy underscores the varying economic opportunities and living standards present in Bolivia. Given the context of internal migration, these figures could indicate the economic incentives or deterrents influencing individuals' decisions to move. For instance, higher average incomes in Santa Cruz might be attracting individuals for better job opportunities or improved living standards. On the other hand, lower averages in Potosí or Oruro might be pushing residents to seek better prospects elsewhere within the country.
+
+##### Summary Conclusion of Internal Migrants Analysis
+
+The intricate tapestry of internal migration within Bolivia, as unveiled through our analysis, presents a multifaceted story. From the outset, it became evident that while some departments like La Paz and Cochabamba were popular destinations for internal migrants, others such as Santa Cruz faced significant outward migration.
+
+Diving into the professional landscape of migrants revealed some intriguing insights. While Santa Cruz, with its bustling economy, saw a significant influx of Service Workers and Merchants, Potosí, despite having a notable presence of Mid-Level Technicians among its migrants, registered a remarkably low average monthly income. This could hint at a more robust merchant economy in Santa Cruz, possibly providing better opportunities and remunerations in service and trade sectors. Conversely, in Potosí, the presence of technically skilled professionals did not translate into higher incomes, raising questions about potential wage disparities or underemployment. It's worth speculating whether the exploitation of manual labor could be a contributing factor, given the region's rich mineral resources.
+
+When juxtaposing the internal migration patterns with those of the internationally repatriated migrants, several noteworthy contrasts emerge. A glance at the age demographics reveals that migrants returning from abroad tend to fall into a slightly older age bracket. Countries such as Paraguay, Italy, and the USA had returnees averaging around the age of 50, possibly indicating a trend of Bolivians returning post-retirement or after a long professional stint abroad.
+
+```{r include=FALSE}
+# Average income of migrants from abroad
+df_migrants %>%
+  filter(Residence_2016 == "Abroad", !is.na(Monthly_Income)) %>%
+  summarise(Avg_Monthly_Income_Abroad = mean(Monthly_Income, na.rm = TRUE))
+
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", !is.na(Monthly_Income)) %>%
+  summarise(Avg_Monthly_Income_Internal = mean(Monthly_Income, na.rm = TRUE))
+```
+
+
+Financially, repatriation seems to present a mixed bag. On one hand, returnees from countries like Spain and Italy reported higher average incomes in Bolivia after their return, suggesting that time spent abroad might have furnished them with skills or experiences that translated into better-paying opportunities back home. Conversely, returnees from countries like Colombia and the USA reported comparatively lower incomes, hinting at potential challenges in integrating back into the Bolivian job market or settling for roles beneath their skill set. When looking at the average monthly income of migrants from abroad compared to those who migrated internally, we see a difference of 2,093.69 Bs. Migrants from abroad earn 8,051.78 bs. per month while internal migrants earn 5,957.89 bs. It's important to note, these averages may be impacted by proportion of the responses. 
+
+In essence, while spending time abroad did offer advantages to some in terms of enhanced career prospects upon return, it wasn't a universal experience. The benefits of international migration appear to be contingent on several factors, including the country of stay, the duration of time spent there, and the nature of skills or experiences gained.
+
+In closing, the national migratory patterns in Bolivia are a testament to the interplay of various socio-economic factors. From professional opportunities to economic allure, myriad reasons influence the decisions of Bolivians to move within their homeland. As we transition into a deeper exploration of migration patterns in Santa Cruz, these insights set the stage for a more nuanced understanding of the dynamics at play.
+
+#### Migratory Patterns of Santa Cruz
+
+Santa Cruz, as Bolivia's largest department and a significant economic hub, warrants a closer examination of its migratory patterns. While the overarching analysis has provided insights into the broader national context, focusing on Santa Cruz allows us to understand the nuances of migration specific to this region. Within this deep dive, we'll explore various facets of the migrants that choose to leave or come to Santa Cruz, including:
+
+**Gender Distribution:** How do the migratory patterns differ between males and females? Is there a significant gender skew in the migrants?
+
+**Population Type:** Are migrants predominantly from urban or rural backgrounds? How does this distinction play a role in their movement?
+
+**Occupation:**What sectors or industries are most represented among the migrants? Do certain occupations have a higher propensity to migrate?
+
+**Income Levels:** How do the income levels of migrants compare to those who remain? Is economic motivation a significant driver for movement?
+
+By dissecting these areas, we hope to piece together a comprehensive picture of Santa Cruz's migratory landscape, shedding light on the factors that drive or deter movement in and out of the department.
+
+##### Origin of Migrants into Santa Cruz
+
+Santa Cruz stands as a pivotal hub in Bolivia's migratory matrix. Its economic dynamism, diverse opportunities, and cultural vibrancy make it a magnet for both international and internal migrants. As we shift our analytical focus to Santa Cruz, a crucial question arises: From which Bolivian regions are people arriving to settle in this bustling department?
+
+```{r echo=FALSE, fig.cap="Figure 39: Distribution of Migrants into Santa Cruz by Department of Origin."}
+# Where did the people that currently live in Santa Cruz come from? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department_2016)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department of Origin", y = "Count",
+       title = "Departments of Origin of Migrants Currently Living in Santa Cruz",
+       fill = "Department_2016")
+# So, most migrants into Santa Cruz are coming from Cochabamba, followed by La Paz and 
+# Chuquisaca. 
+```
+
+
+Santa Cruz's allure seems to resonate most with residents of Cochabamba, with over 30 individuals migrating from this region alone. La Paz and Chuquisaca also contribute significantly to the migratory influx into Santa Cruz. Interestingly, Potosi, despite its rich cultural and historical significance, has the smallest representation among migrants to Santa Cruz. This distribution could hint at socio-economic or lifestyle factors driving migration, as people seek better opportunities or a change in their living environment.
+
+##### Sex of Migrants into Santa Cruz
+
+Having delved into the broader reasons for migration to Santa Cruz, it's intriguing to consider how gender dynamics might play a role in these patterns. Could certain regions display gender-specific trends in their migration to Santa Cruz?
+
+```{r echo=FALSE, fig.cap="Figure 40: Origin of Migrants to Santa Cruz, Segregated by Sex"}
+# Are there any differences in the Sex of migrants into Satna Cruz? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department_2016, fill = Sex)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Department of Origin", y = "Responses",
+       title = "Origin of Migrants to Santa Cruz Separated by Sex",
+       fill = "Sex")
+
+```
+
+The migration landscape to Santa Cruz, when observed through the lens of gender, reveals some distinctive patterns. Most regions exhibit a balanced gender distribution among migrants. However, Potosi and Oruro stand out with a predominant female migratory trend, raising questions about specific socio-economic or cultural factors in those regions that might influence such a trend. Conversely, Tarija's migration to Santa Cruz leans heavily towards men. These gender-specific variances offer a richer understanding of the intricate fabric of migration to Santa Cruz and hint at underlying regional narratives that could be influencing these patterns.
+
+##### Reasons for Migration
+
+Having understood the geographical origins of migrants to Santa Cruz, it's essential to uncover the motivations driving this movement. What personal or professional reasons lead individuals to relocate to this dynamic department?
+
+```{r include=FALSE}
+# What are the main reasons for this move? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Reason)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Reason", y = "Count",
+       title = "Reasons for people moving to Santa Cruz",
+       fill = "Department_2016")
+# The most common reason has to do with Family. Although, the second most popular reason
+# by a large margin is job search. This falls inline with the economic growth of 
+# Santa Cruz. 
+
+```
+
+```{r echo=FALSE, fig.cap="Figure 41: Reasons for Migration to Santa Cruz."}
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = "", y = after_stat(count / sum(count)), fill = factor(Reason))) +
+  geom_bar(width = 1, position = "fill") +
+  coord_polar(theta = "y") +
+  labs(x = NULL, y = NULL, 
+       title = "Reasons for Migration to Santa Cruz",
+       fill = "Reason") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        plot.title = element_text(hjust = 0.5))
+
+```
+
+
+Family ties stand as the cornerstone of migration to Santa Cruz, with the majority citing family reasons as their primary motivation. This showcases the importance of familial bonds and perhaps the desire to be closer to loved ones. Following closely is the allure of employment opportunities, underscoring Santa Cruz's reputation as an economic powerhouse in Bolivia. The combination of these reasons paints a picture of Santa Cruz as a region that offers both familial warmth and professional growth.
+
+##### Migrants Moving Out of Santa Cruz
+
+While Santa Cruz attracts a significant number of migrants, it's equally crucial to understand its outward migratory patterns. What drives the people of Santa Cruz to seek new horizons, and which regions appeal to them the most?
+
+```{r echo=FALSE, fig.cap="Figure 42: Primary Destinations for Migrants Departing from Santa Cruz."}
+# Where are the people leaving moving too? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department_2016 == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Current Department", y = "Responses",
+       title = "Primary Destinations for Migrants Departing from Santa Cruz.",
+       fill = "Sex")
+# I find it interesting that people from Santa Cruz have emmigrated to Cochabamba,
+# Beni, and Chuquisaca respectively. 
+
+```
+
+
+The allure of Santa Cruz, as a hub, is undeniable. However, for those opting to leave, Cochabamba and Chuquisaca emerge as primary destinations. Interestingly, Beni, despite its contrasting socio-economic landscape, also registers a notable influx from Santa Cruz. Such trends hint at a combination of economic, familial, and perhaps even lifestyle factors that sway the decision-making of those venturing out from Santa Cruz.
+
+##### Sex of Outbound Migrants
+
+Diving deeper into the migration patterns from Santa Cruz, we also investigate if gender plays any significant role in influencing these decisions. Do men and women from Santa Cruz show distinct preferences in their chosen destinations?
+
+```{r echo=FALSE, fig.cap="Figure 43: Gender Distribution of Migrants Departing from Santa Cruz by Destination."}
+# Where are the people leaving moving too? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department_2016 == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department, fill = Sex)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Current Department", y = "Count",
+       title = "Primary Destination of Migrants Out of Santa Cruz Separated by Sex",
+       fill = "Sex")
+```
+
+
+When delving into the gender nuances of those departing from Santa Cruz, the distinctions are subtle but telling. While many destinations show an even spread between male and female migrants, certain departments like Potosi and Pando see a slight inclination towards women, whereas Tarija and Beni observe a male-dominant trend. These slight divergences suggest that while many migration influencers may be broadly gender-neutral, specific factors or conditions in certain areas might appeal differently to men and women. With these gender dynamics in mind, it prompts the question: could marital or civil status play a role in these migration patterns? Let's further explore this angle in the subsequent analysis. 
+
+```{r echo=FALSE, fig.cap="Figure 44: Distribution of Migrants Departing Santa Cruz Separated by Civil Status"}
+# Where are the people leaving moving too? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department_2016 == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department, fill = Civil_Status)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Current Department", y = "Responses",
+       title = "Outbound Migrants of Santa Cruz Separated by Civil Status",
+       fill = "Civil Status")
+```
+
+
+An interesting observation in the migration patterns from Santa Cruz is the discernible influence of civil status. The number of respondents identifying as separated, divorced, or widowed is notably low. The prominence of common-law marriage as the dominant response in both Beni and Chuquisaca hints at the potential rural makeup of these communities, where traditional living arrangements might be more prevalent. On the other hand, La Paz sees a lower rate of single individuals choosing to migrate. In contrast, singles notably dominate in destinations like Cochabamba, Beni, and Potosi. This could potentially be indicative of younger individuals seeking opportunities or different lifestyles in these areas. We can get a clearer image of the differences in gender of the migrants by focusing on the singles group. 
+
+```{r echo=FALSE, fig.cap="Figure 45: Distribution of Single Migrants Separated by Sex."}
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department_2016 == "Santa Cruz",
+         Civil_Status == "Single", as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = Department, fill = Sex)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Current Department", y = "Responses",
+       title = "Distribution of Single Migrants Separated by Sex",
+       fill = "Sex")
+```
+
+
+When focusing on single migrants departing from Santa Cruz, a distinct pattern emerges. La Paz stands out with only male migrants leaving Santa Cruz, suggesting potential occupational or lifestyle choices unique to single men. Chuquisaca and notably Beni also see a male dominance, aligning with the occupation types common in these areas. On the flip side, Oruro and Potosi witness a substantial female majority among single migrants. The most balanced distribution is observed in Cochabamba, where the numbers of male and female single migrants are almost equal, reflecting the dynamics between two major urban centers.
+
+##### Previous Population Types of Migrants into Santa Cruz
+
+Are migrants predominantly coming from urban hubs, bustling with activity, or are they hailing from more tranquil rural settings? Understanding the population type of their previous and current residence might shed light on what these individuals seek in Santa Cruz. The next figure provides a breakdown of where these migrants previously resided, offering insights into the urban-rural dynamics at play.
+
+```{r echo=FALSE, fig.cap="Figure 46: Distribution of Migrants Currently in Santa Cruz by Population Type (2021)"}
+# Are they now living in urban areas? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = `Urban/Rural`)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Urban or Rural", y = "Responses",
+       title = "Distribution of Migrants Currently in Santa Cruz by Population Type (2021)",
+       fill = "Sex")
+```
+
+
+The data indicates a pronounced preference for urban areas, with a substantial majority of respondents settling in urban centers. This trend is likely driven by the allure of Santa Cruz de la Sierra (the capital city of the department, not to be confused with the department of Santa Cruz), which stands as a beacon of economic and social opportunities.
+
+Transitioning from this, it would be insightful to explore the type of environments these migrants have moved from. Are they primarily from other urban areas, or is there a significant shift from rural to urban living in their migration patterns?
+
+```{r echo=FALSE, fig.cap="Figure 47: Distribution of Migrants Coming into Santa Cruz by Population Type (2016)"}
+# Are they coming from  urban/rural areas? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department_2016 == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016)) %>%
+  ggplot(aes(x = `Urban/Rural`)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Urban or Rural", y = "Responses",
+       title = "Distribution of Migrants Coming into Santa Cruz by Population Type (2016)")
+```
+
+
+The data reveals a distinct trend of individuals transitioning from rural to urban settings between 2016 and 2021. A significant portion of migrants who previously resided in rural areas in 2016 now find themselves in urban centers by 2021. This shift underscores the broader global trend of urbanization. As rural populations diminish, urban areas continue to burgeon, testament to the magnetic pull of the opportunities, amenities, and lifestyle that cities offer.
+
+#### Employment and Occupation of Migrants into Santa Cruz
+
+Let's explore the labor dynamics of those who've chosen Santa Cruz as their destination. Understanding the professional landscape of these migrants can provide insights into the economic shifts and job opportunities in Santa Cruz. By examining their occupations, we can get a clearer picture of the roles these individuals are filling in the city's workforce.
+
+```{r echo=FALSE, fig.cap="Figure 48: Distribution of Occupations of Migrants into Santa Cruz."}
+# Are they coming from  urban/rural areas? 
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016), !is.na(Occupation)) %>%
+  ggplot(aes(x = Occupation)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Occupation", y = "Responses",
+       title = "Distribution of Occupations of Migrants into Santa Cruz")
+```
+
+
+The graph above illustrates the distribution of occupations among migrants to Santa Cruz. The largest group of migrants falls under the category of "Service Workers/Merchants," which perhaps indicates the appeal of Santa Cruz's urban centers for commerce and service-related opportunities. This is followed closely by "Construction/Manufacturing Industry Workers". It's noteworthy that these top categories encompass a broad spectrum from urban to rural vocations, reflecting the diverse economic landscape of Santa Cruz.
+
+As we delve deeper into the labor, employment, and income attributes of these migrants, we'll gain a better understanding of their economic conditions and motivations. One place to start is looking at the range of monthly income of the migrants. 
+
+```{r echo=FALSE, fig.cap="Table 7: Range of Monthly Income for Migrants into Santa Cruz"}
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department == "Santa Cruz",
+         as.character(Department) != as.character(Department_2016), !is.na(Monthly_Income)) %>%
+  summarise(
+      Maximum = max(Monthly_Income),
+      Minimum = min(Monthly_Income),
+      Median = median(Monthly_Income),
+      Mean = mean(Monthly_Income)
+    ) %>%
+  kable(caption = "Table 7: Range of Monthly Income for Migrants into Santa Cruz","html", digits = 2, align = "cccc")
+
+```
+
+
+
+The range of monthly incomes among migrants moving into Santa Cruz showcases considerable diversity. The highest reported income stands at a substantial 15,600 Bs., while the lowest is just 583.33 Bs., indicating a wide economic spectrum among the migrants. The median income is 4,700 Bs., suggesting that the central tendency of incomes is considerably below the highest figures, yet still  higher than the mininmun wage (2,250 Bs.). The mean income, calculated at 6,435.97 Bs., is higher than the median, hinting at the presence of some higher income values that pull the average up. Such disparities within the income range could be indicative of varied backgrounds, qualifications, and opportunities available to different migrants in Santa Cruz.
+
+Let's further explore the nuances of income by examining the average monthly earnings across different occupations.
+
+```{r echo=FALSE, fig.cap="Figure 49: Current Average Monthly Income of Migrants into Santa Cruz by Occupation"}
+df_migrants %>%
+  filter(Residence_2016 == "Elsewhere in the country", Department == "Santa Cruz") %>%
+  group_by(Occupation) %>%
+  summarise(Avg_Income = mean(Monthly_Income, na.rm = TRUE)) %>%
+  filter(!is.na(Avg_Income)) %>%
+  ggplot(aes(x = Occupation, y = Avg_Income)) +
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Occupation", y = "Average Monthly Income (Bs.)",
+       title = "Distribution of Current Average Monthly Income (Bs.)")
+```
+
+
+Migrants in the realm of public administration and business management command the most significant monthly salaries, approaching a substantial 15,000 bs. While they constitute the minority among the migrants, their elevated income levels undeniably influence the overall average. This stark economic disparity, particularly with public officials, raises questions about potential inequities and even corruption within certain sectors. Following them, the service and merchant sectors see earnings of about 7,000 bs. Most other professions exhibit comparable earnings, roughly around the 5,000 bs mark. Intriguingly, positions that would typically be perceived as specialized or requiring higher education, such as mid-level technicians and scientific and intellectual professions, report lower-than-expected incomes. Finally, there was no income data for respondents in Armed Forces and Office Employees. 
+
+#### Summary Conclusion of Migrants in Santa Cruz
+
+Santa Cruz, a focal point of Bolivian migration, offers a rich tapestry of insights reflecting the broader socio-economic landscape of Bolivia. The migration into this department paints a picture of individuals predominantly seeking urban environments, in line with the global trend of urbanization. The majority of migrants transitioning to Santa Cruz originate from urban settings, suggesting a continued allure of the city's opportunities.
+
+In terms of occupations, while public administration and business management roles are less frequent, they yield the highest incomes, nearing 15,000 bs. This pronounced wage, especially among public officials, hints at potential economic disparities that could be rooted in systemic issues or even corruption. The service and merchant sectors follow suit with commendable earnings, while certain specialized roles, surprisingly, report modest incomes.
+
+An analysis based on gender and civil status adds layers of depth to our understanding. While gender distribution of migrants is mostly balanced across various origin departments, a few stand out with distinct patterns. Civil status insights reveal a dominance of single migrants, especially from regions like Cochabamba, Beni, and Potosi. This may suggest a younger demographic or those free from family ties, migrating to Santa Cruz for new opportunities. Interestingly, in places like La Paz, single male migrants stand out conspicuously. However, when considering both married and common-law married respondents, they collectively form the majority. This suggests that many migrations are possibly family or household moves, which could explain the balanced gender distribution observed. 
+
+In the realm of income, Santa Cruz's migrants demonstrate a wide range, from just over 583 bs to a significant 15,600 bs. The average monthly earnings of these migrants hover around 6,435 bs, with the median closer to 4,700 bs. These figures underscore the economic variability within the migrating population and hint at the diverse opportunities and challenges they might face in their new environment.
+
+In summary, Santa Cruz stands as a microcosm of Bolivia's broader migration patterns, reflecting both the hopes and complexities faced by its populace. The insights garnered here provide a foundation for understanding the economic, social, and cultural shifts taking place within Bolivia's borders.
+
+### Analysis Conclusion
+
+#### Reiteration of Purpose
+
+In this comprehensive analysis, our primary objective was to delve into the migratory patterns of Bolivians, both on a national and international scale. We sought to understand the nuances of migration, specifically focusing on variables like age, occupation, income, and reasons for migration. The primary dataset utilized encompassed responses from over 42,000 individuals, providing a rich source of insights. It's crucial to note that this analysis was confined to the data available, with certain assumptions made, such as the normalization of income data and the exclusion of specific subsets of respondents to maintain clarity and relevance. This study offers a snapshot of migration in Bolivia, shedding light on the multifaceted reasons people move and the socioeconomic implications tied to it.
+
+#### Key Findings
+
+##### Demographics and Education
+
+The analysis of education levels showcased some intriguing patterns, especially when dissected by gender. While education levels were generally consistent across genders, a surprising disparity emerged in the 'No Education' category, where females significantly outnumbered males. This discovery warranted a deeper dive, revealing factors such as rural residence and indigenous group affiliations as potential contributors.
+
+Inter-departmental differences in education also presented noteworthy findings. Some departments exhibited higher levels of advanced education, while others had a greater proportion of residents with minimal formal education. This variance underscores the heterogeneous educational landscape across Bolivia, potentially influenced by regional socio-economic factors, access to educational resources, and cultural values.
+
+##### Labor and Employment
+
+In the realm of employment, Bolivians predominantly find themselves engaged in Service/Merchant roles, followed closely by occupations in Agriculture Labor and Construction/Manufacturing. This distribution offers a snapshot of Bolivia's primary economic sectors and the labor market's orientation.
+
+When it comes to employment types, Self-Employment stands out as the predominant category, indicative of Bolivia's entrepreneurial spirit and largely informal economy. However, it's worth noting the substantial presence of Unpaid Laborers, particularly in the Agricultural sector, highlighting the familial or communal nature of some labor practices.
+
+Income distribution presented a compelling narrative. While the median and mean incomes were encouragingly above the minimum wage, the disparity between the highest and lowest earners was remarkable. This inequality, influenced by factors such as occupation type and regional economic dynamics, emphasizes the need for a more in-depth analysis into wage structures and labor policies.
+
+##### Migration Analysis
+
+###### International Repatriation
+
+The return of Bolivians from abroad provided intriguing insights into global migratory patterns. Predominantly, Argentina emerged as the principal country of origin, with a significant share of repatriates also hailing from other Hispanic countries, primarily in South America. A potential economic downturn in Argentina around 2016, marked by rising inflation, could partly elucidate this trend.
+
+In terms of the reasons for their return, family considerations topped the list, underscoring the cultural and familial ties that bind Bolivians. However, education and employment opportunities also played a pivotal role in their decision to return.
+
+Examining the demographics of this group, age patterns suggested a mix of potentially retired individuals returning from countries like the USA, Italy, and Paraguay, and younger cohorts, possibly students, from places like Ireland. When we consider their professional background, Service, Retail, and Construction/Manufacturing sectors dominate, reflecting the global job market's orientation. In terms of income, while there's a general uplift in earnings for those who spent time abroad, the range varies considerably based on the country of prior residence, with notable highs from countries like Spain and Italy.
+
+###### Internal/National Migration
+
+Internal migration patterns within Bolivia offered a comprehensive glimpse into the shifts and movements of populations between departments. Predominantly, Santa Cruz stood out both as a source and a destination, reflecting its economic and cultural significance. While many depart from Santa Cruz to departments like Cochabamba and Chuquisaca, a substantial number also arrive, highlighting its dynamic nature.
+
+Gender distribution among internal migrants was mostly balanced, with some exceptions in specific departments like Potosi and Oruro, where women dominated, and Tarija, where men were in the majority. Age patterns among these migrants revealed a younger, potentially more mobile demographic seeking better opportunities.
+
+Civil status further illuminated these patterns, with combined married and commonlaw married responses dominating the migratory landscape, especially in departments like Cochabamba, Beni, and Potosi. This could potentially explain the balanced gender distribution of the migrants, assuming the family or household took part in the migration. 
+
+From an economic perspective, the occupation trends of migrants into Santa Cruz were diverse. While public administration roles fetched the highest salaries, sectors like service and merchant industries also played a significant role. However, the income disparities were evident, with certain professions, surprisingly including mid-level technicians and scientific roles, earning notably less.
+
+#### Comparison and Synthesis
+
+The juxtaposition of international repatriation and internal migration within Bolivia unveils a tapestry of movement that reflects both global trends and local dynamics. At the international level, the primary sources of repatriation were predominantly South American nations, with Argentina leading the way. The reasons for such movements, encompassing family ties and economic prospects, showcased the interplay of personal and professional motivations.
+
+In contrast, internal migration patterns predominantly highlighted the magnetic pull of urban centers, with Santa Cruz, La Paz, and Cochabamba being central nodes. While international migrants returned with varied experiences, often from Hispanic nations and with specific age and income profiles, internal migrants were typically younger and seeking better opportunities within Bolivia's urban landscapes.
+
+A shared theme across both migration types was the evident urbanization trend. Rural-to-urban migration, whether from international or national sources, echoed the global shift towards urban centers as hubs of opportunity and cultural exchange. However, income disparities remained a consistent undercurrent. While some professions, especially in public administration, drew high incomes in urban centers like Santa Cruz, others, surprisingly including roles that require specialized skills, lagged behind. This underscores the complexities of Bolivia's economic landscape and the challenges and opportunities it presents to its migrating population.
+
+#### Implications and Recommendations
+
+The migration patterns and socio-economic dynamics unveiled in this analysis carry significant implications for various stakeholders in Bolivia:
+
+##### For Policymakers:
+**Education Disparities:** The surprisingly high numbers in the 'No Education' category, especially among women in rural areas, signals an urgent need for interventions in the educational sector. Policymakers might consider boosting educational outreach and infrastructural development in remote areas.
+
+**Income Disparities:** The pronounced income disparities, particularly evident in urban centers like Santa Cruz, underscore the necessity for wage regulations and perhaps a region-specific re-evaluation of the minimum wage, where areas with higher economic output might warrant a higher minimum wage compared to other regions. Additionally, the potential economic disparity highlighted by the high incomes of public administrators demands transparency in public sector wages.
+
+**Urbanization Trend:** The consistent migration towards urban centers underscores the need for proactive urban planning and infrastructural development to accommodate this growing population. Ensuring the quality of life remains high is paramount. Simultaneously, as we channel resources into urban development, it's equally vital to allocate special care and support for rural areas, aiming to preserve their cultural significance and heritage.
+
+##### For Businesses:
+**Labor Market Dynamics:** Understanding the primary occupations of Bolivians, especially in burgeoning urban centers, can guide businesses in tailoring their services or products. For instance, the dominance of service and merchant roles in Santa Cruz offers potential business avenues.
+
+**Investment Opportunities:** The income profiles of different departments and the evident disparities present both challenges and opportunities. Businesses can find niches in underserved markets or align their strategies with the higher income segments in urban areas.
+
+##### For the General Population:
+**Awareness and Advocacy:** The populace, equipped with this data, can advocate for better policies, especially in education and wage regulations. Grassroots movements can leverage these insights to push for change in specific sectors or regions.
+
+**Migration Decisions:** Those considering migration, be it international or national, can make informed decisions based on the patterns and socio-economic profiles highlighted in this analysis.
+
+In conclusion, while the data offers a snapshot of the current dynamics, it's a clarion call for strategic interventions and informed decision-making across all sectors of Bolivian society.
+
+#### Future Research and Limitations
+
+Every comprehensive analysis is bound by certain constraints, and this study is no exception:
+
+##### Limitations:
+**Data Scope:** The dataset, while extensive, captures a specific time frame and may not reflect long-term trends or sudden shifts in migration patterns or socio-economic dynamics.
+
+**Assumptions Made:** Some assumptions, particularly regarding income normalization and the filtering out of certain data points, may impact the granularity and nuance of the insights.
+
+**Response Bias:** It's worth noting that the data is based on responses, and there might be inherent biases. For instance, certain groups might be underrepresented due to lack of access or willingness to participate in such surveys.
+
+##### Future Research Recommendations:
+**Timescale Analysis:** A study that tracks changes over multiple years could provide richer insights into evolving trends.
+
+**Qualitative Insights:** While this analysis is quantitative, qualitative studies, such as interviews or focus groups, could delve deeper into the reasons behind certain trends, particularly migration decisions.
+
+**Economic Analysis:** A more in-depth economic analysis could provide context to the income disparities observed, considering factors like inflation rates, cost of living, and regional economic policies.
+
+**Urbanization Deep Dive:** Given the evident urbanization trend, a dedicated study on urban development, housing, and infrastructure could be invaluable for policymakers and urban planners.
+
+Building upon these findings and addressing the noted limitations can pave the way for an even more nuanced understanding of Bolivia's socio-economic and migratory landscape.
+
+#### Concluding Thoughts
+
+As we draw this analytical journey to a close, it's evident that Bolivia's migratory patterns, both internal and international, are intricate confluence of socio-economic, educational, and labor influences. From the bustling urban centers to the tranquil rural landscapes, Bolivia's dynamic population movements tell a story of aspiration, necessity, and the relentless search for better opportunities.
+
+This analysis has not just been about numbers and charts; it's about understanding the motivations that drive thousands to change their lives, seeking new horizons or returning to familiar ones. The implications of these movements ripple through every facet of Bolivian society, impacting its economy, culture, and future trajectory.
+
+Migration, at its core, is a reflection of a nation's pulse, its challenges, and its potential. By studying these patterns, we don't just gain insight into where people are going, but also where Bolivia might head in the coming years. As we look ahead, it's crucial to harness the insights from this analysis to shape a future that acknowledges these movements, learns from them, and ultimately, creates an environment where every Bolivian finds their place and purpose.
+
+### Personal Learning 
+
+#### What I Learned
+
+##### Technical Learning Curve
+
+Navigating the data landscape of the Bolivian government's websites and data repositories was an enlightening experience, introducing me to unique data structures, notably the SPSS format, as well as a treasure trove of publicly available datasets hosted by the Bolivian government. My challenge was twofold: understanding this new format and then harnessing appropriate libraries to translate it into a more familiar analytical framework. This project marked my inaugural foray into R programming. Transitioning from a Python-centric background, equipped with the Pandas library, to the distinct syntax and methodologies of R was akin to switching linguistic gears — demanding yet deeply enriching.
+
+##### Deepening Domain Understanding
+
+Born and raised in Bolivia, I entered this project with a sense of familiarity, drawing largely from personal experiences, familial anecdotes, and selective media exposure. However, the data often painted a picture that diverged from my preconceived notions. While my roots provided a nuanced lens through which I interpreted the data, the findings frequently invited surprise, challenging my assumptions and enriching my understanding of Bolivia's socio-economic, educational, labor, and migratory landscape.
+
+##### Analytical Insights: Rethinking Assumptions on Santa Cruz
+
+My initial hypothesis leaned towards a dominant inflow into Santa Cruz, given its economic reputation. Yet, the data unveiled a revelation: Santa Cruz experienced the most pronounced net negative migration compared to other departments. While the economic vitality of Santa Cruz was evident in the data, the exodus was an unexpected twist. Additionally, contrary to my anticipation of a robust agricultural sector, the industry's presence was less pronounced than imagined.
+
+#### Navigating the Challenges
+
+Embarking on this project presented a series of hurdles. A primary obstacle was transitioning from my comfort zone with Python to grappling with R, a programming language new to me. The dataset itself posed its own set of challenges: its unique format, primarily numerical, required extensive translation and interpretation, often making the process repetitive and intricate. The use of dictionary keys to represent string data added another layer of complexity. Analytical constraints also emerged due to the limited sample size in the survey and the inherent limitations of relying on a single data source. An additional consideration was that the survey's structure captured household responses rather than individual perspectives, which could potentially skew certain interpretations.
+
+In response to these challenges, a multifaceted approach was essential. Migrating from Python to R required extensive research, consultations with R documentation, and trial-and-error iterations. To tackle the data's unique format, I leveraged specialized libraries to convert numerical representations into comprehensible insights. When faced with potential data biases due to the survey's household-centric approach, I took extra care in the interpretation phase, frequently cross-referencing findings and maintaining a critical lens throughout. Each challenge, in turn, became an opportunity for growth and innovation.
+
+#### What I Would Do Differently
+
+**Enhancing with Historical Data:**
+In hindsight, integrating data from prior surveys could have enriched the analysis, offering a clearer year-to-year evolution of migratory trends instead of relying solely on the five-year retrospective responses. Such an approach would not only chart the shifts in migratory patterns but also provide a detailed trajectory of changes in occupations, income trajectories, and educational attainments over an extended period.
+
+**Focused Analytical Scope:**
+In reflection, refining the scope to be more specific could have been beneficial. Migration trends are influenced by a multitude of factors, making them inherently complex. A more narrowed focus would have allowed for a sharper, more detailed exploration, providing insights that are both concise and pinpointed.
+
+**Diverse Data Visualization:**
+In hindsight, diversifying the types of visual representations would have enhanced the presentation of my findings. While the frequent use of bar plots was partly influenced by the nature of the data and my nascent familiarity with the programming language, there's a clear opportunity for future projects to employ a wider array of visualization tools for a more dynamic and comprehensive portrayal of data.
+
+#### Future Prospects
+
+This analysis serves not only as a comprehensive review but also as a springboard for more intricate inquiries. Specifically, the sections on income and occupation present intriguing questions that warrant more detailed and focused examinations. The foundation has been laid, opening avenues for further in-depth exploration in the future.
+
+## Thank you
+
+#### Contact Information
+
+Wesley Ordoñez
++1 (708) 669-9225
+wesordonez1@gmail.com
+Chicago, IL
+
